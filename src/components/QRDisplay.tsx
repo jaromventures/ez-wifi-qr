@@ -15,6 +15,7 @@ interface QRDisplayProps {
 export const QRDisplay = ({ config }: QRDisplayProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [copied, setCopied] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   
   const wifiString = `WIFI:T:${config.encryption};S:${config.ssid};P:${config.password};H:${config.hidden};;`;
 
@@ -24,6 +25,8 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
       const ctx = canvas.getContext("2d");
       
       if (config.backgroundImage && ctx) {
+        setIsGenerating(true);
+        
         // Load background image
         const img = new Image();
         img.onload = () => {
@@ -32,7 +35,7 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
           tempCanvas.width = 300;
           tempCanvas.height = 300;
           
-          // Generate QR on temporary canvas first
+          // Generate QR on temporary canvas first with lower error correction for backgrounds
           QRCode.toCanvas(
             tempCanvas,
             wifiString,
@@ -41,22 +44,47 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
               margin: 2,
               color: {
                 dark: "#000000",
-                light: "rgba(255,255,255,0.9)",
+                light: "#FFFFFF", // Solid white for better contrast
               },
-              errorCorrectionLevel: "M", // Use medium for better compatibility with backgrounds
+              errorCorrectionLevel: "L", // Low error correction for backgrounds
             },
             (error) => {
               if (error) {
-                toast({
-                  title: "QR Generation Error",
-                  description: "QR code too complex with background. Try removing the background or shortening your password.",
-                  variant: "destructive",
-                });
-                console.error(error);
+                console.error("QR generation with background failed:", error);
+                
+                // Fallback: Generate without background
+                QRCode.toCanvas(
+                  canvas,
+                  wifiString,
+                  {
+                    width: 300,
+                    margin: 2,
+                    color: {
+                      dark: "#000000",
+                      light: "#ffffff",
+                    },
+                    errorCorrectionLevel: "M",
+                  },
+                  (fallbackError) => {
+                    setIsGenerating(false);
+                    if (fallbackError) {
+                      toast({
+                        title: "QR Generation Error",
+                        description: "Wi-Fi information too complex. Try shortening your password.",
+                        variant: "destructive",
+                      });
+                    } else {
+                      toast({
+                        title: "Background Removed",
+                        description: "Background too complex - QR code generated without background for better reliability.",
+                      });
+                    }
+                  }
+                );
                 return;
               }
               
-              // Now composite: background + QR on main canvas
+              // Success - composite background + QR on main canvas
               canvas.width = 300;
               canvas.height = 300;
               
@@ -65,20 +93,40 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
               
               // Draw QR code on top
               ctx.drawImage(tempCanvas, 0, 0);
+              
+              setIsGenerating(false);
             }
           );
         };
         
         img.onerror = () => {
+          setIsGenerating(false);
           toast({
             title: "Image Load Error",
-            description: "Failed to load background image. Please try a different image.",
+            description: "Failed to load background image. Generating QR without background.",
             variant: "destructive",
           });
+          
+          // Fallback to no background
+          QRCode.toCanvas(
+            canvas,
+            wifiString,
+            {
+              width: 300,
+              margin: 2,
+              color: {
+                dark: "#000000",
+                light: "#ffffff",
+              },
+              errorCorrectionLevel: "M",
+            }
+          );
         };
         
         img.src = config.backgroundImage;
       } else {
+        setIsGenerating(true);
+        
         // No background - standard QR generation
         QRCode.toCanvas(
           canvas,
@@ -93,6 +141,7 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
             errorCorrectionLevel: "M",
           },
           (error) => {
+            setIsGenerating(false);
             if (error) {
               toast({
                 title: "QR Generation Error",
@@ -203,8 +252,16 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="flex flex-col items-center justify-center space-y-4">
-          <div className="rounded-lg bg-white p-6 shadow-soft">
+          <div className="relative rounded-lg bg-white p-6 shadow-soft">
             <canvas ref={canvasRef} className="mx-auto" />
+            {isGenerating && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/80 backdrop-blur-sm">
+                <div className="flex flex-col items-center space-y-2">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                  <p className="text-sm text-muted-foreground">Generating QR code...</p>
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="text-center">

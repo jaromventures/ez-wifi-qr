@@ -5,6 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { X } from "lucide-react";
+import { optimizeImage, getImageDimensions } from "./ImageOptimizer";
+import { toast } from "@/hooks/use-toast";
 
 interface WiFiFormProps {
   onGenerate: (config: WiFiConfig) => void;
@@ -26,6 +29,7 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
   const [hidden, setHidden] = useState(false);
   const [showCredentialsOnPdf, setShowCredentialsOnPdf] = useState(false);
   const [backgroundImage, setBackgroundImage] = useState<string>();
+  const [backgroundImageInfo, setBackgroundImageInfo] = useState<{ name: string; size: string; optimized: boolean }>();
   const [errors, setErrors] = useState<{ ssid?: string; password?: string }>({});
 
   const validateForm = (): boolean => {
@@ -47,15 +51,82 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleBackgroundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBackgroundUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setBackgroundImage(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    try {
+      // Check file size
+      const fileSizeKB = file.size / 1024;
+      const fileSizeMB = fileSizeKB / 1024;
+      
+      // Get dimensions
+      const dimensions = await getImageDimensions(file);
+      
+      // Show warning for very large images
+      if (fileSizeMB > 5) {
+        toast({
+          title: "Image Too Large",
+          description: "Please select an image smaller than 5MB for best results.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Optimize if needed (>800KB or >1500px)
+      let imageData: string;
+      let wasOptimized = false;
+      
+      if (fileSizeKB > 800 || dimensions.width > 1500 || dimensions.height > 1500) {
+        toast({
+          title: "Optimizing Image",
+          description: "Resizing image for better QR generation...",
+        });
+        
+        imageData = await optimizeImage(file, {
+          maxWidth: 1000,
+          maxHeight: 1000,
+          quality: 0.85,
+          maxSizeKB: 800,
+        });
+        wasOptimized = true;
+      } else {
+        // Use original
+        const reader = new FileReader();
+        imageData = await new Promise<string>((resolve) => {
+          reader.onload = (event) => {
+            resolve(event.target?.result as string);
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      setBackgroundImage(imageData);
+      setBackgroundImageInfo({
+        name: file.name,
+        size: fileSizeMB > 1 ? `${fileSizeMB.toFixed(1)} MB` : `${fileSizeKB.toFixed(0)} KB`,
+        optimized: wasOptimized,
+      });
+
+      if (wasOptimized) {
+        toast({
+          title: "Image Optimized",
+          description: "Image resized for better compatibility with QR codes.",
+        });
+      }
+    } catch (error) {
+      console.error("Error processing image:", error);
+      toast({
+        title: "Image Error",
+        description: "Failed to process image. Please try a different file.",
+        variant: "destructive",
+      });
     }
+  };
+
+  const handleRemoveBackground = () => {
+    setBackgroundImage(undefined);
+    setBackgroundImageInfo(undefined);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -170,8 +241,30 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
               onChange={handleBackgroundUpload}
               className="cursor-pointer"
             />
-            {backgroundImage && (
-              <p className="text-xs text-muted-foreground">✓ Background uploaded successfully</p>
+            {backgroundImage && backgroundImageInfo && (
+              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-3">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-foreground">{backgroundImageInfo.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {backgroundImageInfo.size}
+                    {backgroundImageInfo.optimized && " • Optimized"}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRemoveBackground}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            {!backgroundImage && (
+              <p className="text-xs text-muted-foreground">
+                💡 Tip: Use images under 1MB and 1500x1500px for best results
+              </p>
             )}
           </div>
 

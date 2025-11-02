@@ -1,12 +1,23 @@
 import { useState } from "react";
-import { loadStripe } from "@stripe/stripe-js";
+import { loadStripe, Stripe } from "@stripe/stripe-js";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Crown, CreditCard } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "");
+let stripePromise: Promise<Stripe | null> | null = null;
+
+const getStripe = () => {
+  if (!stripePromise) {
+    const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+    if (!key || key === "") {
+      return null;
+    }
+    stripePromise = loadStripe(key);
+  }
+  return stripePromise;
+};
 
 interface StripeCheckoutProps {
   open: boolean;
@@ -20,9 +31,16 @@ export const StripeCheckout = ({ open, onOpenChange }: StripeCheckoutProps) => {
     setLoading(true);
     
     try {
-      const stripe = await stripePromise;
+      const stripe = getStripe();
+      
       if (!stripe) {
-        throw new Error("Stripe not loaded");
+        toast({
+          title: "Stripe Not Configured",
+          description: "Payment processing is not set up yet. Please check the README for setup instructions.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
       }
 
       // In production, you would call your backend to create a checkout session
@@ -35,7 +53,12 @@ export const StripeCheckout = ({ open, onOpenChange }: StripeCheckoutProps) => {
       // Simulate success for demo
       // Uncomment below for real integration:
       /*
-      const { error } = await stripe.redirectToCheckout({
+      const stripeInstance = await stripe;
+      if (!stripeInstance) {
+        throw new Error("Stripe not loaded");
+      }
+      
+      const { error } = await stripeInstance.redirectToCheckout({
         lineItems: [{ price: priceId, quantity: 1 }],
         mode: mode,
         successUrl: `${window.location.origin}?payment_success=true`,
