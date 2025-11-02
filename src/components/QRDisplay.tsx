@@ -27,13 +27,14 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
         // Load background image
         const img = new Image();
         img.onload = () => {
-          canvas.width = 300;
-          canvas.height = 300;
-          ctx.drawImage(img, 0, 0, 300, 300);
+          // Create temporary canvas for QR generation
+          const tempCanvas = document.createElement("canvas");
+          tempCanvas.width = 300;
+          tempCanvas.height = 300;
           
-          // Generate QR on top
+          // Generate QR on temporary canvas first
           QRCode.toCanvas(
-            canvas,
+            tempCanvas,
             wifiString,
             {
               width: 300,
@@ -42,22 +43,43 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
                 dark: "#000000",
                 light: "rgba(255,255,255,0.9)",
               },
-              errorCorrectionLevel: "H",
+              errorCorrectionLevel: "M", // Use medium for better compatibility with backgrounds
             },
             (error) => {
               if (error) {
                 toast({
                   title: "QR Generation Error",
-                  description: "Failed to generate QR code. Try shortening your password.",
+                  description: "QR code too complex with background. Try removing the background or shortening your password.",
                   variant: "destructive",
                 });
                 console.error(error);
+                return;
               }
+              
+              // Now composite: background + QR on main canvas
+              canvas.width = 300;
+              canvas.height = 300;
+              
+              // Draw background
+              ctx.drawImage(img, 0, 0, 300, 300);
+              
+              // Draw QR code on top
+              ctx.drawImage(tempCanvas, 0, 0);
             }
           );
         };
+        
+        img.onerror = () => {
+          toast({
+            title: "Image Load Error",
+            description: "Failed to load background image. Please try a different image.",
+            variant: "destructive",
+          });
+        };
+        
         img.src = config.backgroundImage;
       } else {
+        // No background - standard QR generation
         QRCode.toCanvas(
           canvas,
           wifiString,
@@ -74,7 +96,7 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
             if (error) {
               toast({
                 title: "QR Generation Error",
-                description: "Failed to generate QR code. Try shortening your password.",
+                description: "Wi-Fi information too complex. Try shortening your password.",
                 variant: "destructive",
               });
               console.error(error);
