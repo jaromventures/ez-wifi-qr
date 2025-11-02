@@ -1,14 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Hero } from "@/components/Hero";
 import { WiFiForm, WiFiConfig } from "@/components/WiFiForm";
 import { QRDisplay } from "@/components/QRDisplay";
 import { PremiumBanner } from "@/components/PremiumBanner";
+import { PrintfulProducts } from "@/components/PrintfulProducts";
 import { Button } from "@/components/ui/button";
 import { ArrowUp } from "lucide-react";
 
 const Index = () => {
   const [wifiConfig, setWifiConfig] = useState<WiFiConfig | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleGenerate = (config: WiFiConfig) => {
     setWifiConfig(config);
@@ -16,20 +27,21 @@ const Index = () => {
     setTimeout(() => {
       const qrSection = document.getElementById("qr-section");
       qrSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+      
+      // Capture QR data URL for Printful
+      setTimeout(() => {
+        if (qrCanvasRef.current) {
+          setQrDataUrl(qrCanvasRef.current.toDataURL());
+        }
+      }, 500);
     }, 100);
   };
 
   const handleReset = () => {
     setWifiConfig(null);
+    setQrDataUrl("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-
-  // Show scroll-to-top button when user scrolls down
-  if (typeof window !== "undefined") {
-    window.addEventListener("scroll", () => {
-      setShowScrollTop(window.scrollY > 300);
-    });
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -39,18 +51,22 @@ const Index = () => {
         <WiFiForm onGenerate={handleGenerate} />
 
         {wifiConfig && (
-          <div id="qr-section" className="mt-12 scroll-mt-8">
-            <QRDisplay config={wifiConfig} />
-            
-            <div className="mt-6 text-center">
-              <Button onClick={handleReset} variant="outline" size="lg">
-                Generate Another QR Code
-              </Button>
+          <>
+            <div id="qr-section" className="mt-12 scroll-mt-8">
+              <QRDisplay config={wifiConfig} />
+              
+              <div className="mt-6 text-center">
+                <Button onClick={handleReset} variant="outline" size="lg">
+                  Generate Another QR Code
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
 
-        {wifiConfig && <PremiumBanner />}
+            <PremiumBanner />
+
+            {qrDataUrl && <PrintfulProducts config={wifiConfig} qrDataUrl={qrDataUrl} />}
+          </>
+        )}
       </main>
 
       <footer className="mt-16 border-t border-border bg-muted/30 py-8">

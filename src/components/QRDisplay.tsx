@@ -20,31 +20,70 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
 
   useEffect(() => {
     if (canvasRef.current) {
-      QRCode.toCanvas(
-        canvasRef.current,
-        wifiString,
-        {
-          width: 300,
-          margin: 2,
-          color: {
-            dark: "#000000",
-            light: "#ffffff",
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext("2d");
+      
+      if (config.backgroundImage && ctx) {
+        // Load background image
+        const img = new Image();
+        img.onload = () => {
+          canvas.width = 300;
+          canvas.height = 300;
+          ctx.drawImage(img, 0, 0, 300, 300);
+          
+          // Generate QR on top
+          QRCode.toCanvas(
+            canvas,
+            wifiString,
+            {
+              width: 300,
+              margin: 2,
+              color: {
+                dark: "#000000",
+                light: "rgba(255,255,255,0.9)",
+              },
+              errorCorrectionLevel: "H",
+            },
+            (error) => {
+              if (error) {
+                toast({
+                  title: "QR Generation Error",
+                  description: "Failed to generate QR code. Try shortening your password.",
+                  variant: "destructive",
+                });
+                console.error(error);
+              }
+            }
+          );
+        };
+        img.src = config.backgroundImage;
+      } else {
+        QRCode.toCanvas(
+          canvas,
+          wifiString,
+          {
+            width: 300,
+            margin: 2,
+            color: {
+              dark: "#000000",
+              light: "#ffffff",
+            },
+            errorCorrectionLevel: "M",
           },
-          errorCorrectionLevel: "M",
-        },
-        (error) => {
-          if (error) {
-            toast({
-              title: "QR Generation Error",
-              description: "Failed to generate QR code. Try shortening your password.",
-              variant: "destructive",
-            });
-            console.error(error);
+          (error) => {
+            if (error) {
+              toast({
+                title: "QR Generation Error",
+                description: "Failed to generate QR code. Try shortening your password.",
+                variant: "destructive",
+              });
+              console.error(error);
+            }
           }
-        }
-      );
+        );
+      }
     }
-  }, [wifiString]);
+  }, [wifiString, config.backgroundImage]);
 
   const handleDownloadPNG = () => {
     if (!canvasRef.current) return;
@@ -83,15 +122,25 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
     pdf.setFontSize(16);
     pdf.text(`Network: ${config.ssid}`, 105, 45, { align: "center" });
 
+    // Add credentials if enabled
+    if (config.showCredentialsOnPdf) {
+      pdf.setFontSize(14);
+      pdf.setFont(undefined, "bold");
+      pdf.text(`Password: ${config.password || "Open Network"}`, 105, 55, { align: "center" });
+      pdf.setFont(undefined, "normal");
+    }
+
     // Add QR code
     const imgData = canvasRef.current.toDataURL("image/png");
     const imgSize = 100; // 100mm square
     const x = (210 - imgSize) / 2; // Center on A4 width (210mm)
-    pdf.addImage(imgData, "PNG", x, 60, imgSize, imgSize);
+    const yPos = config.showCredentialsOnPdf ? 65 : 60;
+    pdf.addImage(imgData, "PNG", x, yPos, imgSize, imgSize);
 
     // Add instructions
     pdf.setFontSize(12);
-    pdf.text("Scan with your phone's camera to connect", 105, 175, { align: "center" });
+    const instructY = config.showCredentialsOnPdf ? 180 : 175;
+    pdf.text("Scan with your phone's camera to connect", 105, instructY, { align: "center" });
     
     // Add footer
     pdf.setFontSize(10);

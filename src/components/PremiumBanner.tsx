@@ -1,8 +1,15 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Crown, Sparkles, Palette, BarChart3, Zap } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { StripeCheckout } from "./StripeCheckout";
+import { usePremium } from "@/hooks/use-premium";
 
 export const PremiumBanner = () => {
+  const { isPro } = usePremium();
+  const [showStripeModal, setShowStripeModal] = useState(false);
+
+  if (isPro) return null;
   return (
     <div className="mx-auto my-8 w-full max-w-2xl rounded-lg border border-premium/30 bg-gradient-premium p-6 shadow-medium">
       <div className="flex flex-col items-center gap-4 text-center md:flex-row md:text-left">
@@ -19,7 +26,12 @@ export const PremiumBanner = () => {
 
         <Dialog>
           <DialogTrigger asChild>
-            <Button variant="premium" size="touch" className="whitespace-nowrap">
+            <Button 
+              variant="premium" 
+              size="touch" 
+              className="whitespace-nowrap"
+              onClick={() => setShowStripeModal(true)}
+            >
               <Sparkles className="mr-2 h-4 w-4" />
               Upgrade Now
             </Button>
@@ -51,8 +63,8 @@ export const PremiumBanner = () => {
                 />
                 <ProFeature
                   icon={<Crown className="h-5 w-5" />}
-                  title="Premium Templates"
-                  description="Professional print layouts"
+                  title="Print-on-Demand"
+                  description="Order physical products via Printful"
                 />
               </div>
 
@@ -62,17 +74,20 @@ export const PremiumBanner = () => {
                 <p className="text-xs text-muted-foreground">7-day money-back guarantee</p>
               </div>
 
-              <Button variant="premium" size="xl" className="w-full">
+              <Button 
+                variant="premium" 
+                size="xl" 
+                className="w-full"
+                onClick={() => setShowStripeModal(true)}
+              >
                 <Crown className="mr-2 h-5 w-5" />
                 Get Pro Access
               </Button>
-
-              <p className="text-center text-xs text-muted-foreground">
-                Coming soon! Enter your email to be notified when Pro launches.
-              </p>
             </div>
           </DialogContent>
         </Dialog>
+        
+        <StripeCheckout open={showStripeModal} onOpenChange={setShowStripeModal} />
       </div>
     </div>
   );

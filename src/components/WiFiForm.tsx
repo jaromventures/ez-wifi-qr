@@ -15,6 +15,8 @@ export interface WiFiConfig {
   password: string;
   encryption: "WPA" | "WEP" | "nopass";
   hidden: boolean;
+  showCredentialsOnPdf?: boolean;
+  backgroundImage?: string;
 }
 
 export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
@@ -22,6 +24,8 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
   const [password, setPassword] = useState("");
   const [encryption, setEncryption] = useState<WiFiConfig["encryption"]>("WPA");
   const [hidden, setHidden] = useState(false);
+  const [showCredentialsOnPdf, setShowCredentialsOnPdf] = useState(false);
+  const [backgroundImage, setBackgroundImage] = useState<string>();
   const [errors, setErrors] = useState<{ ssid?: string; password?: string }>({});
 
   const validateForm = (): boolean => {
@@ -43,6 +47,17 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleBackgroundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setBackgroundImage(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -52,6 +67,8 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
         password: encryption === "nopass" ? "" : password,
         encryption,
         hidden,
+        showCredentialsOnPdf,
+        backgroundImage,
       });
     }
   };
@@ -124,11 +141,38 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
             </div>
           )}
 
-          <div className="flex items-center space-x-2">
-            <Checkbox id="hidden" checked={hidden} onCheckedChange={(checked) => setHidden(checked === true)} />
-            <Label htmlFor="hidden" className="cursor-pointer text-sm font-normal">
-              Hidden Network (SSID not broadcast)
-            </Label>
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <Checkbox id="hidden" checked={hidden} onCheckedChange={(checked) => setHidden(checked === true)} />
+              <Label htmlFor="hidden" className="cursor-pointer text-sm font-normal">
+                Hidden Network (SSID not broadcast)
+              </Label>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="showCredentials" 
+                checked={showCredentialsOnPdf} 
+                onCheckedChange={(checked) => setShowCredentialsOnPdf(checked === true)} 
+              />
+              <Label htmlFor="showCredentials" className="cursor-pointer text-sm font-normal">
+                Show Wi-Fi Name & Password on PDF
+              </Label>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="background">Background Image (Optional)</Label>
+            <Input
+              id="background"
+              type="file"
+              accept="image/*"
+              onChange={handleBackgroundUpload}
+              className="cursor-pointer"
+            />
+            {backgroundImage && (
+              <p className="text-xs text-muted-foreground">✓ Background uploaded successfully</p>
+            )}
           </div>
 
           <Button type="submit" size="touch" variant="hero" className="w-full">

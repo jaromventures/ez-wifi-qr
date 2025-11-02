@@ -1,8 +1,12 @@
 import { Wifi, Smartphone, Zap } from "lucide-react";
+import { ThemeToggle } from "./ThemeToggle";
 
 export const Hero = () => {
   return (
     <section className="relative overflow-hidden bg-gradient-hero px-4 py-16 text-center">
+      <div className="absolute right-4 top-4 z-20">
+        <ThemeToggle />
+      </div>
       <div className="mx-auto max-w-4xl">
         <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-white/20 px-4 py-2 text-sm font-medium text-white backdrop-blur-sm">
           <Zap className="h-4 w-4" />
