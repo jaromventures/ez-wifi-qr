@@ -35,7 +35,7 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
           tempCanvas.width = 300;
           tempCanvas.height = 300;
           
-          // Generate QR on temporary canvas first with lower error correction for backgrounds
+          // Generate QR on temporary canvas first with medium error correction for backgrounds
           QRCode.toCanvas(
             tempCanvas,
             wifiString,
@@ -46,7 +46,7 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
                 dark: "#000000",
                 light: "#FFFFFF", // Solid white for better contrast
               },
-              errorCorrectionLevel: "L", // Low error correction for backgrounds
+              errorCorrectionLevel: "M", // Medium error correction for backgrounds
             },
             (error) => {
               if (error) {
