@@ -511,7 +511,7 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
                 <h3 className="text-lg font-semibold mb-1">Get Your QR Code Printed</h3>
                 <p className="text-sm text-muted-foreground">Professional prints delivered in 7-10 days</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
                 {products.map((product) => (
                   <CompactProductCard
                     key={product.id}
