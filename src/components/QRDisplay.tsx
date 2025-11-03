@@ -44,7 +44,7 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
               margin: 2,
               color: {
                 dark: "#000000",
-                light: "#FFFFFF", // Solid white for better contrast
+                light: "#FFFFFF00", // Transparent white so background shows through
               },
               errorCorrectionLevel: "M", // Medium error correction for backgrounds
             },
@@ -86,13 +86,32 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
               
               // Success - composite background + QR on main canvas
               canvas.width = 300;
-              canvas.height = 300;
+              canvas.height = 400; // Extra space for text
               
               // Draw background
               ctx.drawImage(img, 0, 0, 300, 300);
               
               // Draw QR code on top
               ctx.drawImage(tempCanvas, 0, 0);
+              
+              // Add white background for text area
+              ctx.fillStyle = "#FFFFFF";
+              ctx.fillRect(0, 300, 300, 100);
+              
+              // Draw network name
+              ctx.fillStyle = "#000000";
+              ctx.font = "bold 18px sans-serif";
+              ctx.textAlign = "center";
+              ctx.fillText(config.ssid, 150, 330);
+              
+              // Draw password
+              if (config.encryption !== "nopass" && config.password) {
+                ctx.font = "14px sans-serif";
+                ctx.fillText(`Password: ${config.password}`, 150, 355);
+              } else {
+                ctx.font = "14px sans-serif";
+                ctx.fillText("Open Network", 150, 355);
+              }
               
               setIsGenerating(false);
             }
@@ -127,9 +146,13 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
       } else {
         setIsGenerating(true);
         
-        // No background - standard QR generation
+        // No background - standard QR generation with text
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = 300;
+        tempCanvas.height = 300;
+        
         QRCode.toCanvas(
-          canvas,
+          tempCanvas,
           wifiString,
           {
             width: 300,
@@ -141,15 +164,47 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
             errorCorrectionLevel: "M",
           },
           (error) => {
-            setIsGenerating(false);
             if (error) {
+              setIsGenerating(false);
               toast({
                 title: "QR Generation Error",
                 description: "Wi-Fi information too complex. Try shortening your password.",
                 variant: "destructive",
               });
               console.error(error);
+              return;
             }
+            
+            // Draw QR and text on main canvas
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              canvas.width = 300;
+              canvas.height = 400; // Extra space for text
+              
+              // White background
+              ctx.fillStyle = "#FFFFFF";
+              ctx.fillRect(0, 0, 300, 400);
+              
+              // Draw QR code
+              ctx.drawImage(tempCanvas, 0, 0);
+              
+              // Draw network name
+              ctx.fillStyle = "#000000";
+              ctx.font = "bold 18px sans-serif";
+              ctx.textAlign = "center";
+              ctx.fillText(config.ssid, 150, 330);
+              
+              // Draw password
+              if (config.encryption !== "nopass" && config.password) {
+                ctx.font = "14px sans-serif";
+                ctx.fillText(`Password: ${config.password}`, 150, 355);
+              } else {
+                ctx.font = "14px sans-serif";
+                ctx.fillText("Open Network", 150, 355);
+              }
+            }
+            
+            setIsGenerating(false);
           }
         );
       }
