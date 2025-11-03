@@ -7,6 +7,7 @@ import QRCode from "qrcode";
 import jsPDF from "jspdf";
 import { WiFiConfig } from "./WiFiForm";
 import { toast } from "@/hooks/use-toast";
+import { generatePrintableCanvas } from "./PrintableQRGenerator";
 
 interface QRDisplayProps {
   config: WiFiConfig;
@@ -188,182 +189,99 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = `EZ-WI-FI_${config.ssid.replace(/[^a-zA-Z0-9]/g, "_")}.png`;
+        link.download = `EZ-WI-FI_${config.ssid.replace(/[^a-zA-Z0-9]/g, "_")}_preview.png`;
         link.click();
         URL.revokeObjectURL(url);
         
         toast({
-          title: "QR Code Downloaded",
-          description: "Your QR code has been saved as PNG",
+          title: "Preview Downloaded",
+          description: "300×300px preview image saved",
         });
       }
     });
   };
 
-  const handlePrintPDF = () => {
-    if (!canvasRef.current) return;
-
+  const handleDownloadPrintPNG = async () => {
     setIsGenerating(true);
-
+    
     try {
+      toast({
+        title: "Generating Print PNG...",
+        description: "Creating 8.5×11 inch image at 300 DPI",
+      });
+
+      // Generate high-quality print canvas (2550x3300px)
+      const printCanvas = await generatePrintableCanvas(config);
+      
+      printCanvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `EZ-WI-FI_${config.ssid.replace(/[^a-zA-Z0-9]/g, "_")}_print-8.5x11.png`;
+          link.click();
+          URL.revokeObjectURL(url);
+          
+          toast({
+            title: "Print PNG Downloaded",
+            description: "8.5×11 inch @ 300 DPI image saved",
+          });
+        }
+        setIsGenerating(false);
+      }, "image/png");
+    } catch (error) {
+      console.error("Error generating print PNG:", error);
+      setIsGenerating(false);
+      toast({
+        title: "Error",
+        description: "Failed to generate print-ready PNG",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePrintPDF = async () => {
+    setIsGenerating(true);
+    
+    try {
+      toast({
+        title: "Generating Print-Ready PDF...",
+        description: "Creating 8.5×11 inch layout at 300 DPI",
+      });
+
+      // Generate high-quality print canvas (2550x3300px)
+      const printCanvas = await generatePrintableCanvas(config);
+
+      // Create PDF with US Letter dimensions at 300 DPI
       const pdf = new jsPDF({
         orientation: "portrait",
-        unit: "mm",
-        format: "a4",
+        unit: "px",
+        format: [2550, 3300], // 8.5" x 11" @ 300 DPI
       });
 
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-
-      // STEP 1: Full-page background (if uploaded)
-      if (config.backgroundImage) {
-        try {
-          pdf.addImage(
-            config.backgroundImage,
-            'PNG',
-            0, 
-            0,
-            pageWidth, 
-            pageHeight,
-            undefined,
-            'FAST'
-          );
-        } catch (error) {
-          console.warn("Background image failed to load in PDF, using white:", error);
-        }
-      }
-
-      // STEP 2: Individual frosted glass windows - Reordered layout
-      let currentY = 40; // Start lower to center better
-
-      // 1. CUSTOM MESSAGE at top
-      const customMessage = (config.customTitle || "Scan to join network").substring(0, 60);
-      const messageWindowWidth = 160;
-      const messageWindowHeight = 16;
-      const messageWindowX = (pageWidth - messageWindowWidth) / 2;
-
-      pdf.saveGraphicsState();
-      pdf.setFillColor(255, 255, 255);
-      pdf.setGState({ opacity: 0.20 }); // Ultra-subtle
-      pdf.roundedRect(messageWindowX, currentY, messageWindowWidth, messageWindowHeight, 5, 5, 'F');
-      pdf.restoreGraphicsState();
-
-      pdf.setFontSize(14);
-      pdf.setFont(undefined, 'bold');
-      pdf.setTextColor(0, 0, 0);
-      pdf.text(customMessage, pageWidth / 2, currentY + 11, { align: "center", maxWidth: 150 });
-
-      currentY += messageWindowHeight + 20; // Gap before QR
-
-      // 2. QR CODE - Centered and prominent
-      const qrWindowSize = 110;
-      const qrWindowX = (pageWidth - qrWindowSize) / 2;
-
-      pdf.saveGraphicsState();
-      pdf.setFillColor(255, 255, 255);
-      pdf.setGState({ opacity: 0.20 }); // Ultra-subtle
-      pdf.roundedRect(qrWindowX, currentY, qrWindowSize, qrWindowSize, 5, 5, 'F');
-      pdf.restoreGraphicsState();
-
-      const qrSize = 100;
-      const qrX = qrWindowX + 5;
-      const qrY = currentY + 5;
-      const imgData = canvasRef.current.toDataURL("image/png");
-      pdf.addImage(imgData, "PNG", qrX, qrY, qrSize, qrSize);
-
-      currentY += qrWindowSize + 20; // Gap after QR
-
-      // 3. NETWORK - Below QR (only if credentials enabled)
-      if (config.showCredentialsOnPdf) {
-        const networkWindowWidth = 150;
-        const networkWindowHeight = 14;
-        const networkWindowX = (pageWidth - networkWindowWidth) / 2;
-        
-        pdf.saveGraphicsState();
-        pdf.setFillColor(255, 255, 255);
-        pdf.setGState({ opacity: 0.20 }); // Ultra-subtle
-        pdf.roundedRect(networkWindowX, currentY, networkWindowWidth, networkWindowHeight, 5, 5, 'F');
-        pdf.restoreGraphicsState();
-        
-        pdf.setFontSize(16);
-        pdf.setFont(undefined, 'bold');
-        pdf.setTextColor(0, 0, 0);
-        const truncatedSsid = config.ssid.length > 35 
-          ? config.ssid.substring(0, 35) + "..." 
-          : config.ssid;
-        pdf.text(`Network: ${truncatedSsid}`, pageWidth / 2, currentY + 10, { align: "center", maxWidth: 140 });
-        
-        currentY += networkWindowHeight + 10;
-      }
-
-      // 4. PASSWORD - Below Network (only if credentials enabled and password exists)
-      if (config.showCredentialsOnPdf && config.encryption !== "nopass" && config.password) {
-        const passwordWindowWidth = 150;
-        const passwordWindowHeight = 14;
-        const passwordWindowX = (pageWidth - passwordWindowWidth) / 2;
-        
-        pdf.saveGraphicsState();
-        pdf.setFillColor(255, 255, 255);
-        pdf.setGState({ opacity: 0.20 }); // Ultra-subtle
-        pdf.roundedRect(passwordWindowX, currentY, passwordWindowWidth, passwordWindowHeight, 5, 5, 'F');
-        pdf.restoreGraphicsState();
-        
-        pdf.setTextColor(220, 38, 38); // Red password
-        pdf.setFontSize(15);
-        pdf.setFont(undefined, 'bold');
-        const truncatedPassword = config.password.length > 45 
-          ? config.password.substring(0, 45) + "..." 
-          : config.password;
-        pdf.text(`Password: ${truncatedPassword}`, pageWidth / 2, currentY + 10, { 
-          align: "center", 
-          maxWidth: 140 
-        });
-        pdf.setTextColor(0, 0, 0);
-        
-        currentY += passwordWindowHeight + 10;
-      } else if (config.showCredentialsOnPdf && config.encryption === "nopass") {
-        const openNetworkWindowWidth = 150;
-        const openNetworkWindowHeight = 14;
-        const openNetworkWindowX = (pageWidth - openNetworkWindowWidth) / 2;
-        
-        pdf.saveGraphicsState();
-        pdf.setFillColor(255, 255, 255);
-        pdf.setGState({ opacity: 0.20 }); // Ultra-subtle
-        pdf.roundedRect(openNetworkWindowX, currentY, openNetworkWindowWidth, openNetworkWindowHeight, 5, 5, 'F');
-        pdf.restoreGraphicsState();
-        
-        pdf.setFontSize(15);
-        pdf.setFont(undefined, 'normal');
-        pdf.setTextColor(0, 0, 0);
-        pdf.text("Open Network (No Password)", pageWidth / 2, currentY + 10, { align: "center" });
-        
-        currentY += openNetworkWindowHeight + 10;
-      }
-
-      pdf.setFont(undefined, 'normal');
-
-      // STEP 6: Footer (outside window, at bottom)
-      pdf.setFontSize(9);
-      pdf.setTextColor(100, 100, 100);
-      pdf.text("Generated by EZ-WI-FI • 100% Private & Secure", pageWidth / 2, pageHeight - 15, { 
-        align: "center" 
-      });
+      // Add the full canvas as image
+      const printDataUrl = printCanvas.toDataURL("image/png");
+      pdf.addImage(printDataUrl, "PNG", 0, 0, 2550, 3300);
 
       // Create blob URL for preview
-      const pdfBlob = pdf.output('blob');
+      const pdfBlob = pdf.output("blob");
       const pdfUrl = URL.createObjectURL(pdfBlob);
       setPdfPreviewUrl(pdfUrl);
       setPdfInstance(pdf);
       setShowPdfPreview(true);
       
       setIsGenerating(false);
-      
+
+      toast({
+        title: "PDF Ready",
+        description: "8.5×11 inch print-ready PDF generated successfully",
+      });
     } catch (error) {
-      console.error("PDF generation error:", error);
+      console.error("Error generating PDF:", error);
       setIsGenerating(false);
       toast({
-        title: "PDF Generation Failed",
-        description: "Please try again or download as PNG instead",
+        title: "Error",
+        description: "Failed to generate PDF preview",
         variant: "destructive",
       });
     }
@@ -442,25 +360,34 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Button onClick={handleDownloadPNG} size="touch" className="w-full">
-              <Download className="mr-2 h-4 w-4" />
-              Download PNG
-            </Button>
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Button onClick={handleDownloadPrintPNG} size="touch" className="w-full">
+                <Download className="mr-2 h-4 w-4" />
+                Download Print PNG (8.5×11)
+              </Button>
+              
+              <Button onClick={handlePrintPDF} size="touch" className="w-full">
+                <Printer className="mr-2 h-4 w-4" />
+                Print PDF (8.5×11)
+              </Button>
+            </div>
             
-            <Button onClick={handlePrintPDF} size="touch" variant="secondary" className="w-full">
-              <FileText className="mr-2 h-4 w-4" />
-              Print PDF
-            </Button>
-            
-            <Button onClick={handleCopyString} size="touch" variant="outline" className="w-full">
-              {copied ? (
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-              ) : (
-                <Copy className="mr-2 h-4 w-4" />
-              )}
-              {copied ? "Copied!" : "Copy String"}
-            </Button>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Button onClick={handleDownloadPNG} size="touch" variant="outline" className="w-full">
+                <Download className="mr-2 h-4 w-4" />
+                Preview PNG
+              </Button>
+              
+              <Button onClick={handleCopyString} size="touch" variant="outline" className="w-full">
+                {copied ? (
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                ) : (
+                  <Copy className="mr-2 h-4 w-4" />
+                )}
+                {copied ? "Copied!" : "Copy String"}
+              </Button>
+            </div>
           </div>
 
           <div className="rounded-lg border border-border bg-muted/50 p-4">
