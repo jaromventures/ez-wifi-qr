@@ -267,81 +267,132 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
         }
       }
 
-      // STEP 2: Calculate window dimensions
-      const windowX = 30;
-      const windowY = config.showCredentialsOnPdf ? 20 : 40;
-      const windowWidth = 150;
-      const windowHeight = config.showCredentialsOnPdf ? 240 : 200;
+      // STEP 2: Individual frosted glass windows for each element
+      let currentY = 25;
 
-      // Draw rounded white window with 85% opacity
+      // Title Window - Frosted glass around title only
+      const title = (config.customTitle || "Guest Wi-Fi").substring(0, 50);
+      const titleWindowWidth = 120;
+      const titleWindowHeight = 18;
+      const titleWindowX = (pageWidth - titleWindowWidth) / 2;
+      
       pdf.saveGraphicsState();
       pdf.setFillColor(255, 255, 255);
-      pdf.setGState({ opacity: 0.85 });
-      pdf.roundedRect(windowX, windowY, windowWidth, windowHeight, 8, 8, 'F');
+      pdf.setGState({ opacity: 0.70 });
+      pdf.roundedRect(titleWindowX, currentY, titleWindowWidth, titleWindowHeight, 5, 5, 'F');
       pdf.restoreGraphicsState();
-
-      // STEP 3: Calculate center point for all content
-      const centerX = windowX + windowWidth / 2;
-      let contentY = windowY + 20;
-
-      // Custom Title
-      const title = (config.customTitle || "Guest Wi-Fi").substring(0, 50);
+      
       pdf.setFontSize(22);
       pdf.setFont(undefined, 'bold');
       pdf.setTextColor(0, 0, 0);
-      pdf.text(title, centerX, contentY, { align: "center", maxWidth: 140 });
-      contentY += 12;
+      pdf.text(title, pageWidth / 2, currentY + 12, { align: "center", maxWidth: 110 });
+      
+      currentY += titleWindowHeight + 7;
 
-      // Network Info (if showCredentialsOnPdf enabled)
+      // Network Window - Only if credentials are shown
       if (config.showCredentialsOnPdf) {
-        // Network name
+        const networkWindowWidth = 140;
+        const networkWindowHeight = 12;
+        const networkWindowX = (pageWidth - networkWindowWidth) / 2;
+        
+        pdf.saveGraphicsState();
+        pdf.setFillColor(255, 255, 255);
+        pdf.setGState({ opacity: 0.70 });
+        pdf.roundedRect(networkWindowX, currentY, networkWindowWidth, networkWindowHeight, 5, 5, 'F');
+        pdf.restoreGraphicsState();
+        
         pdf.setFontSize(14);
         pdf.setFont(undefined, 'bold');
         pdf.setTextColor(0, 0, 0);
         const truncatedSsid = config.ssid.length > 30 
           ? config.ssid.substring(0, 30) + "..." 
           : config.ssid;
-        pdf.text(`Network: ${truncatedSsid}`, centerX, contentY, { align: "center", maxWidth: 140 });
-        contentY += 8;
+        pdf.text(`Network: ${truncatedSsid}`, pageWidth / 2, currentY + 8, { align: "center", maxWidth: 130 });
         
-        // Password in RED & BOLD
-        if (config.encryption !== "nopass" && config.password) {
-          pdf.setTextColor(220, 38, 38); // Red color
-          pdf.setFontSize(13);
-          pdf.setFont(undefined, 'bold');
-          const truncatedPassword = config.password.length > 40 
-            ? config.password.substring(0, 40) + "..." 
-            : config.password;
-          pdf.text(`Password: ${truncatedPassword}`, centerX, contentY, { 
-            align: "center", 
-            maxWidth: 130 
-          });
-          pdf.setTextColor(0, 0, 0); // Reset to black
-          contentY += 12;
-        } else {
-          pdf.setFontSize(13);
-          pdf.text("Open Network (No Password)", centerX, contentY, { align: "center" });
-          contentY += 12;
-        }
-        pdf.setFont(undefined, 'normal');
+        currentY += networkWindowHeight + 6;
       }
 
-      // STEP 4: QR Code (smaller, centered in window)
-      const qrSize = 90; // 90mm square
-      const qrX = centerX - qrSize / 2;
-      const qrY = contentY + 5;
+      // Password Window - Only if credentials shown and password exists
+      if (config.showCredentialsOnPdf && config.encryption !== "nopass" && config.password) {
+        const passwordWindowWidth = 140;
+        const passwordWindowHeight = 12;
+        const passwordWindowX = (pageWidth - passwordWindowWidth) / 2;
+        
+        pdf.saveGraphicsState();
+        pdf.setFillColor(255, 255, 255);
+        pdf.setGState({ opacity: 0.70 });
+        pdf.roundedRect(passwordWindowX, currentY, passwordWindowWidth, passwordWindowHeight, 5, 5, 'F');
+        pdf.restoreGraphicsState();
+        
+        pdf.setTextColor(220, 38, 38);
+        pdf.setFontSize(13);
+        pdf.setFont(undefined, 'bold');
+        const truncatedPassword = config.password.length > 40 
+          ? config.password.substring(0, 40) + "..." 
+          : config.password;
+        pdf.text(`Password: ${truncatedPassword}`, pageWidth / 2, currentY + 8, { 
+          align: "center", 
+          maxWidth: 130 
+        });
+        pdf.setTextColor(0, 0, 0);
+        
+        currentY += passwordWindowHeight + 6;
+      } else if (config.showCredentialsOnPdf && config.encryption === "nopass") {
+        const openNetworkWindowWidth = 140;
+        const openNetworkWindowHeight = 12;
+        const openNetworkWindowX = (pageWidth - openNetworkWindowWidth) / 2;
+        
+        pdf.saveGraphicsState();
+        pdf.setFillColor(255, 255, 255);
+        pdf.setGState({ opacity: 0.70 });
+        pdf.roundedRect(openNetworkWindowX, currentY, openNetworkWindowWidth, openNetworkWindowHeight, 5, 5, 'F');
+        pdf.restoreGraphicsState();
+        
+        pdf.setFontSize(13);
+        pdf.setFont(undefined, 'normal');
+        pdf.setTextColor(0, 0, 0);
+        pdf.text("Open Network (No Password)", pageWidth / 2, currentY + 8, { align: "center" });
+        
+        currentY += openNetworkWindowHeight + 6;
+      }
+      
+      pdf.setFont(undefined, 'normal');
+      currentY += 8;
 
+      // QR Code Window - Frosted glass around QR only
+      const qrWindowSize = 100;
+      const qrWindowX = (pageWidth - qrWindowSize) / 2;
+      
+      pdf.saveGraphicsState();
+      pdf.setFillColor(255, 255, 255);
+      pdf.setGState({ opacity: 0.70 });
+      pdf.roundedRect(qrWindowX, currentY, qrWindowSize, qrWindowSize, 5, 5, 'F');
+      pdf.restoreGraphicsState();
+      
+      const qrSize = 90;
+      const qrX = qrWindowX + 5;
+      const qrY = currentY + 5;
       const imgData = canvasRef.current.toDataURL("image/png");
       pdf.addImage(imgData, "PNG", qrX, qrY, qrSize, qrSize);
+      
+      currentY += qrWindowSize + 10;
 
-      contentY = qrY + qrSize + 10;
-
-      // STEP 5: Scan instruction (inside window)
+      // Scan Message Window - Frosted glass around instruction
+      const scanWindowWidth = 160;
+      const scanWindowHeight = 12;
+      const scanWindowX = (pageWidth - scanWindowWidth) / 2;
+      
+      pdf.saveGraphicsState();
+      pdf.setFillColor(255, 255, 255);
+      pdf.setGState({ opacity: 0.70 });
+      pdf.roundedRect(scanWindowX, currentY, scanWindowWidth, scanWindowHeight, 5, 5, 'F');
+      pdf.restoreGraphicsState();
+      
       pdf.setFontSize(11);
       pdf.setTextColor(0, 0, 0);
-      pdf.text("Scan with your phone's camera to connect", centerX, contentY, { 
+      pdf.text("Scan with your phone's camera to connect", pageWidth / 2, currentY + 8, { 
         align: "center",
-        maxWidth: 130
+        maxWidth: 150
       });
 
       // STEP 6: Footer (outside window, at bottom)
