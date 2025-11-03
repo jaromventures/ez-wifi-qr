@@ -19,6 +19,7 @@ export interface WiFiConfig {
   encryption: "WPA" | "WEP" | "nopass";
   hidden: boolean;
   showCredentialsOnPdf?: boolean;
+  customTitle?: string;
   backgroundImage?: string;
 }
 
@@ -28,6 +29,7 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
   const [encryption, setEncryption] = useState<WiFiConfig["encryption"]>("WPA");
   const [hidden, setHidden] = useState(false);
   const [showCredentialsOnPdf, setShowCredentialsOnPdf] = useState(false);
+  const [customTitle, setCustomTitle] = useState("Guest Wi-Fi");
   const [backgroundImage, setBackgroundImage] = useState<string>();
   const [backgroundImageInfo, setBackgroundImageInfo] = useState<{ name: string; size: string; optimized: boolean }>();
   const [errors, setErrors] = useState<{ ssid?: string; password?: string }>({});
@@ -139,6 +141,7 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
         encryption,
         hidden,
         showCredentialsOnPdf,
+        customTitle: customTitle.trim() || "Guest Wi-Fi",
         backgroundImage,
       });
     }
@@ -212,6 +215,23 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
             </div>
           )}
 
+          <div className="space-y-2">
+            <Label htmlFor="customTitle">
+              Custom PDF Title
+            </Label>
+            <Input
+              id="customTitle"
+              type="text"
+              placeholder="e.g., Welcome to My Home Wi-Fi!"
+              value={customTitle}
+              onChange={(e) => setCustomTitle(e.target.value)}
+              maxLength={50}
+            />
+            <p className="text-xs text-muted-foreground">
+              💡 Appears at the top of your PDF (50 characters max)
+            </p>
+          </div>
+
           <div className="space-y-3">
             <div className="flex items-center space-x-2">
               <Checkbox id="hidden" checked={hidden} onCheckedChange={(checked) => setHidden(checked === true)} />
@@ -227,7 +247,7 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
                 onCheckedChange={(checked) => setShowCredentialsOnPdf(checked === true)} 
               />
               <Label htmlFor="showCredentials" className="cursor-pointer text-sm font-normal">
-                Show Wi-Fi Name & Password on PDF
+                Display password visibly on PDF (⚠️ use cautiously for security)
               </Label>
             </div>
           </div>
