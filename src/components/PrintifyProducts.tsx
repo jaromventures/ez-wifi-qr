@@ -60,33 +60,6 @@ const MARKUP = 1.45; // 45% markup
 export const PrintifyProducts = ({ qrDataUrl }: PrintifyProductsProps) => {
   const [loadingProduct, setLoadingProduct] = useState<string | null>(null);
 
-  const uploadImageToPrintify = async (dataUrl: string): Promise<string> => {
-    const printifyApiKey = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzN2Q0YmQzMDM1ZmUxMWU5YTgwM2FiN2VlYjNjY2M5NyIsImp0aSI6IjA4NGRkMWUzMDZkZmE3YjBiYzA5ZmExZDRmZDMxMjA3ZGE4Zjk4ZGU0NzE5ZGQxMGFkYmJmOTQ4MjEwMzVhM2UzYTk5Njc2MGQ3YzFkMmE2IiwiaWF0IjoxNzYyMTIwOTkxLjgwMzgyMiwibmJmIjoxNzYyMTIwOTkxLjgwMzgyMywiZXhwIjoxNzkzNjU2OTkxLjc5OTI1NSwic3ViIjoiODc4NjgwOSIsInNjb3BlcyI6WyJzaG9wcy5tYW5hZ2UiLCJzaG9wcy5yZWFkIiwiY2F0YWxvZy5yZWFkIiwib3JkZXJzLnJlYWQiLCJvcmRlcnMud3JpdGUiLCJwcm9kdWN0cy5yZWFkIiwicHJvZHVjdHMud3JpdGUiLCJ3ZWJob29rcy5yZWFkIiwid2ViaG9va3Mud3JpdGUiLCJ1cGxvYWRzLnJlYWQiLCJ1cGxvYWRzLndyaXRlIiwicHJpbnRfcHJvdmlkZXJzLnJlYWQiLCJ1c2VyLmluZm8iXX0.AX4RwG9lVEIUgNLPxltI4bPK5YA1GHPKSaeYdwDZm-ANk1XwKkP4nR0Rjs_o_K0Hk9xyVn4F1U8NgcE05SYErnrMLWh22QENQ5SNlNnBjye3LTRIsijOFdNB2_-TxEk5M-tgYTebqr8FLNwS_nwS64zxBRDs4WZKX3hQMif93r_tchhKWuDG2qk4H-7L9aZAP26067CVk_t50BkOgql3XzkawenXWRpo3OxJ5POc6Gt0KH2H6pTYaA_VbbFwav2eVnluU23GVWwuzHIBsTxXBlV3LxuSQs0NpUXnogAdRiKwKqYOIPaODUv5QRPJu-CZySWckcPHldZ2cVLAuyuMwjR89MYN2JDMNDp8_3cqXZPd3t3865cAley5PkqZuFx2JN3Z2snLkC3xjs4Eq9CkUtLZN1X0D0WPxu8gjNKUO3eenAraMWj7_E6VoOXF1ytaj79cYpE9B2kQ1Q_0Tua0-7C8XLx9belXe-Rb011l8G-rlnZt67wxVFnckUr12PlZguFa3YUL_fL1WcbMTX2aZrjAHHapKwB-CM6q1bGTm2Aov30PrzV7BFfgNc4Qf1wymGPFK_hc1mALdRjev26pqoyzxQDxu-MPId4jv23wLNWh9hNPMXWx0n55FHjRzJixNdzwlZyjuR-cpxVYZkiD230tJUZN8lgVB4oFlQxB7cw";
-    
-    // Convert data URL to base64 string without prefix
-    const base64String = dataUrl.split(',')[1];
-    
-    const response = await fetch('https://api.printify.com/v1/uploads/images.json', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${printifyApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        file_name: 'wifi-qr-code.png',
-        contents: base64String,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Failed to upload image to Printify: ${error}`);
-    }
-
-    const data = await response.json();
-    return data.id;
-  };
-
   const handleOrder = async (product: Product) => {
     setLoadingProduct(product.id);
 
@@ -96,35 +69,50 @@ export const PrintifyProducts = ({ qrDataUrl }: PrintifyProductsProps) => {
         description: "Uploading your QR code design",
       });
 
-      // Upload QR image to Printify
-      const imageId = await uploadImageToPrintify(qrDataUrl);
-      console.log('Printify image ID:', imageId);
-
-      // Calculate retail price with markup
-      const retailPrice = product.base_price * MARKUP;
-
-      // Create Stripe checkout session
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
+      // Upload QR image to Printify and get variant details
+      const { data: printifyData, error: printifyError } = await supabase.functions.invoke('printify-upload', {
         body: {
-          product_name: product.name,
-          price: retailPrice,
-          printify_image_id: imageId,
-          printify_variant_id: '12345', // This should be fetched from Printify API in production
-          printify_blueprint_id: product.blueprint_id.toString(),
-          base_cost: product.base_price,
+          qr_data_url: qrDataUrl,
+          blueprint_id: product.blueprint_id,
         },
       });
 
-      if (error) {
-        throw error;
+      if (printifyError) {
+        throw printifyError;
       }
 
-      if (!data?.url) {
+      if (!printifyData?.image_id || !printifyData?.variant_id) {
+        throw new Error('Failed to upload image or fetch product details');
+      }
+
+      console.log('Printify data:', printifyData);
+
+      // Calculate retail price with markup using actual base cost
+      const baseCost = printifyData.base_cost || product.base_price;
+      const retailPrice = baseCost * MARKUP;
+
+      // Create Stripe checkout session
+      const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke('create-checkout', {
+        body: {
+          product_name: product.name,
+          price: retailPrice,
+          printify_image_id: printifyData.image_id,
+          printify_variant_id: printifyData.variant_id.toString(),
+          printify_blueprint_id: product.blueprint_id.toString(),
+          base_cost: baseCost,
+        },
+      });
+
+      if (checkoutError) {
+        throw checkoutError;
+      }
+
+      if (!checkoutData?.url) {
         throw new Error('No checkout URL received');
       }
 
       // Redirect to Stripe Checkout
-      window.location.href = data.url;
+      window.location.href = checkoutData.url;
     } catch (error) {
       console.error('Order error:', error);
       toast({
