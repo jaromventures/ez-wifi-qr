@@ -27,36 +27,6 @@ interface Product {
   product_type: 'poster' | 'square';
 }
 
-const PRODUCTS: Product[] = [
-  {
-    id: "framed-print",
-    name: 'Framed Print (18x24")',
-    description: "Premium framed poster",
-    blueprint_id: 3,
-    mockup_url: "/presets/geometric.png",
-    base_price: 20.00,
-    product_type: 'poster',
-  },
-  {
-    id: "fridge-magnet",
-    name: 'Fridge Magnet (4x4")',
-    description: "Kiss cut magnet",
-    blueprint_id: 27,
-    mockup_url: "/presets/paisley.png",
-    base_price: 5.50,
-    product_type: 'square',
-  },
-  {
-    id: "vinyl-sticker",
-    name: 'Vinyl Sticker (4x4")',
-    description: "Waterproof die-cut sticker",
-    blueprint_id: 13,
-    mockup_url: "/presets/space.png",
-    base_price: 4.13,
-    product_type: 'square',
-  },
-];
-
 const MARKUP = 1.45; // 45% markup
 
 export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) => {
@@ -69,8 +39,67 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
   const [loadingProduct, setLoadingProduct] = useState<string | null>(null);
   const [productCanvases, setProductCanvases] = useState<{ poster: string; square: string } | null>(null);
   const [qrThumbnail, setQrThumbnail] = useState<string>("");
+  const [products, setProducts] = useState<Product[]>([
+    {
+      id: "framed-print",
+      name: 'Framed Print (18x24")',
+      description: "Premium framed poster",
+      blueprint_id: 3,
+      mockup_url: "/presets/geometric.png",
+      base_price: 20.00,
+      product_type: 'poster',
+    },
+    {
+      id: "fridge-magnet",
+      name: 'Fridge Magnet (4x4")',
+      description: "Kiss cut magnet",
+      blueprint_id: 27,
+      mockup_url: "/presets/paisley.png",
+      base_price: 5.50,
+      product_type: 'square',
+    },
+    {
+      id: "vinyl-sticker",
+      name: 'Vinyl Sticker (4x4")',
+      description: "Waterproof die-cut sticker",
+      blueprint_id: 13,
+      mockup_url: "/presets/space.png",
+      base_price: 4.13,
+      product_type: 'square',
+    },
+  ]);
   
   const wifiString = `WIFI:T:${config.encryption};S:${config.ssid};P:${config.password};H:${config.hidden};;`;
+
+  // Fetch product mockup images from Printify
+  useEffect(() => {
+    const fetchMockups = async () => {
+      try {
+        const blueprintIds = [3, 27, 13];
+        const response = await supabase.functions.invoke('get-printify-blueprints', {
+          body: { blueprintIds }
+        });
+
+        if (response.data?.blueprints) {
+          setProducts(prevProducts => 
+            prevProducts.map(product => {
+              const mockup = response.data.blueprints.find(
+                (bp: any) => bp.blueprintId === product.blueprint_id
+              );
+              return mockup?.mockupUrl 
+                ? { ...product, mockup_url: mockup.mockupUrl }
+                : product;
+            })
+          );
+          console.log('Loaded product mockups from Printify API');
+        }
+      } catch (error) {
+        console.error('Error fetching product mockups:', error);
+      }
+    };
+
+    fetchMockups();
+  }, []);
 
   useEffect(() => {
     const generatePreview = async () => {
@@ -438,8 +467,8 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
                 <h3 className="text-lg font-semibold mb-1">Get Your QR Code Printed</h3>
                 <p className="text-sm text-muted-foreground">Professional prints delivered in 7-10 days</p>
               </div>
-              <div className="flex gap-3 overflow-x-auto pb-4 px-1">
-                {PRODUCTS.map((product) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {products.map((product) => (
                   <CompactProductCard
                     key={product.id}
                     name={product.name}

@@ -18,43 +18,50 @@ serve(async (req) => {
       throw new Error('PRINTIFY_API_KEY is not set');
     }
 
-    console.log('Fetching Printify catalog blueprints...');
+    const { blueprintIds } = await req.json();
 
-    // Fetch all available blueprints
-    const blueprintsResponse = await fetch('https://api.printify.com/v1/catalog/blueprints.json', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${PRINTIFY_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!blueprintsResponse.ok) {
-      const errorText = await blueprintsResponse.text();
-      console.error('Printify blueprints error:', errorText);
-      throw new Error(`Failed to fetch blueprints: ${blueprintsResponse.statusText}`);
+    if (!blueprintIds || !Array.isArray(blueprintIds)) {
+      throw new Error('blueprintIds array is required');
     }
 
-    const blueprints = await blueprintsResponse.json();
-    
-    console.log(`Found ${blueprints.length} blueprints`);
-    
-    // Filter for common product types we're interested in
-    const relevantBlueprints = blueprints.filter((bp: any) => {
-      const title = bp.title?.toLowerCase() || '';
-      return title.includes('poster') || 
-             title.includes('print') || 
-             title.includes('magnet') || 
-             title.includes('sticker');
+    console.log('Fetching mockups for blueprints:', blueprintIds);
+
+    // Fetch each blueprint's details to get mockup images
+    const blueprintPromises = blueprintIds.map(async (blueprintId: number) => {
+      const response = await fetch(
+        `https://api.printify.com/v1/catalog/blueprints/${blueprintId}.json`,
+        {
+          headers: {
+            'Authorization': `Bearer ${PRINTIFY_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.error(`Failed to fetch blueprint ${blueprintId}: ${response.status}`);
+        return { blueprintId, mockupUrl: null };
+      }
+
+      const data = await response.json();
+      
+      // Get the first available mockup image
+      const mockupUrl = data.images?.[0]?.src || null;
+      
+      console.log(`Blueprint ${blueprintId} - ${data.title}: ${mockupUrl}`);
+
+      return {
+        blueprintId,
+        mockupUrl,
+      };
     });
 
-    console.log(`Found ${relevantBlueprints.length} relevant blueprints:`, 
-      relevantBlueprints.map((bp: any) => ({ id: bp.id, title: bp.title }))
-    );
+    const results = await Promise.all(blueprintPromises);
+    
+    console.log('Successfully fetched mockups:', results);
 
     return new Response(JSON.stringify({ 
-      blueprints: relevantBlueprints,
-      total: blueprints.length 
+      blueprints: results
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
