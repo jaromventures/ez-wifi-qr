@@ -75,26 +75,70 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
   useEffect(() => {
     const fetchMockups = async () => {
       try {
-        const blueprintIds = [3, 27, 13];
+        console.log('Discovering Printify products...');
         const response = await supabase.functions.invoke('get-printify-blueprints', {
-          body: { blueprintIds }
+          body: {}
         });
 
-        if (response.data?.blueprints) {
-          setProducts(prevProducts => 
-            prevProducts.map(product => {
-              const mockup = response.data.blueprints.find(
-                (bp: any) => bp.blueprintId === product.blueprint_id
-              );
-              return mockup?.mockupUrl 
-                ? { ...product, mockup_url: mockup.mockupUrl }
-                : product;
-            })
-          );
-          console.log('Loaded product mockups from Printify API');
+        if (response.error) {
+          throw response.error;
+        }
+
+        if (response.data?.selectedProducts && response.data.selectedProducts.length > 0) {
+          const newProducts: Product[] = [];
+          
+          // Map discovered products to our product structure
+          response.data.selectedProducts.forEach((item: any) => {
+            if (item.category === 'poster' && item.mockupUrl) {
+              newProducts.push({
+                id: "framed-print",
+                name: item.title || 'Framed Print (18x24")',
+                description: `By ${item.brand || 'Printify'}`,
+                blueprint_id: item.blueprintId,
+                mockup_url: item.mockupUrl,
+                base_price: 20.00,
+                product_type: 'poster',
+              });
+            } else if (item.category === 'magnet' && item.mockupUrl) {
+              newProducts.push({
+                id: "fridge-magnet",
+                name: item.title || 'Fridge Magnet (4x4")',
+                description: `By ${item.brand || 'Printify'}`,
+                blueprint_id: item.blueprintId,
+                mockup_url: item.mockupUrl,
+                base_price: 5.50,
+                product_type: 'square',
+              });
+            } else if (item.category === 'sticker' && item.mockupUrl) {
+              newProducts.push({
+                id: "vinyl-sticker",
+                name: item.title || 'Vinyl Sticker (4x4")',
+                description: `By ${item.brand || 'Printify'}`,
+                blueprint_id: item.blueprintId,
+                mockup_url: item.mockupUrl,
+                base_price: 4.13,
+                product_type: 'square',
+              });
+            }
+          });
+          
+          if (newProducts.length > 0) {
+            setProducts(newProducts);
+            console.log('Loaded real Printify products:', newProducts);
+          } else {
+            console.log('No valid products found, using defaults');
+          }
+          
+          console.log('All available products:', response.data.allProducts);
+        } else {
+          console.log('No products discovered, using defaults');
         }
       } catch (error) {
         console.error('Error fetching product mockups:', error);
+        toast({
+          title: "Using default product images",
+          description: "Could not load real product mockups",
+        });
       }
     };
 
