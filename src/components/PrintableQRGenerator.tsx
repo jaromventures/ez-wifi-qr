@@ -27,7 +27,7 @@ const MIDDLE_ZONE_START = 825;   // Middle 50% for QR
 const MIDDLE_ZONE_END = 2475;
 const BOTTOM_ZONE_START = 2475;  // Bottom 25% for credentials
 
-const QR_SIZE = 1500; // Large, high-quality QR code
+const QR_SIZE = 1800; // Large, high-quality QR code
 
 export async function generatePrintableCanvas(
   config: WiFiConfig
@@ -159,11 +159,29 @@ async function drawQRCode(
     const middleZoneHeight = MIDDLE_ZONE_END - MIDDLE_ZONE_START;
     const qrY = MIDDLE_ZONE_START + (middleZoneHeight - QR_SIZE) / 2;
 
-    // Draw white background for QR code
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(centerX - QR_SIZE / 2 - 20, qrY - 20, QR_SIZE + 40, QR_SIZE + 40);
+    // Extract color from QR area of background (before drawing QR)
+    const padding = 40;
+    const qrBgColor = extractColorFromRegion(
+      ctx,
+      centerX - QR_SIZE / 2 - padding,
+      qrY - padding,
+      QR_SIZE + (padding * 2),
+      QR_SIZE + (padding * 2),
+      0.85 // Slightly higher opacity (85%) for better QR scanning
+    );
 
-    // Draw QR code
+    // Draw rounded transparent box with extracted color
+    drawTransparentBox(
+      ctx,
+      centerX - QR_SIZE / 2 - padding,
+      qrY - padding,
+      QR_SIZE + (padding * 2),
+      QR_SIZE + (padding * 2),
+      30, // Rounded corners to match text boxes
+      qrBgColor
+    );
+
+    // Draw QR code on top
     ctx.drawImage(qrCanvas, centerX - QR_SIZE / 2, qrY, QR_SIZE, QR_SIZE);
   } catch (error) {
     console.error("QR code generation failed:", error);
