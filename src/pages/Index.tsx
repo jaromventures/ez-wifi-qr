@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Hero } from "@/components/Hero";
 import { WiFiForm, WiFiConfig } from "@/components/WiFiForm";
 import { QRDisplay } from "@/components/QRDisplay";
@@ -10,7 +10,6 @@ const Index = () => {
   const [wifiConfig, setWifiConfig] = useState<WiFiConfig | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
-  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,18 +21,16 @@ const Index = () => {
 
   const handleGenerate = (config: WiFiConfig) => {
     setWifiConfig(config);
+    setQrDataUrl(""); // Reset QR data URL
     // Smooth scroll to QR display
     setTimeout(() => {
       const qrSection = document.getElementById("qr-section");
       qrSection?.scrollIntoView({ behavior: "smooth", block: "start" });
-      
-      // Capture QR data URL for Printful
-      setTimeout(() => {
-        if (qrCanvasRef.current) {
-          setQrDataUrl(qrCanvasRef.current.toDataURL());
-        }
-      }, 500);
     }, 100);
+  };
+
+  const handleQRGenerated = (dataUrl: string) => {
+    setQrDataUrl(dataUrl);
   };
 
   const handleReset = () => {
@@ -52,7 +49,7 @@ const Index = () => {
         {wifiConfig && (
           <>
             <div id="qr-section" className="mt-12 scroll-mt-8">
-              <QRDisplay config={wifiConfig} />
+              <QRDisplay config={wifiConfig} onQRGenerated={handleQRGenerated} />
               
               <div className="mt-6 text-center">
                 <Button onClick={handleReset} variant="outline" size="lg">

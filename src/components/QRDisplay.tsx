@@ -11,9 +11,10 @@ import { generatePrintableCanvas } from "./PrintableQRGenerator";
 
 interface QRDisplayProps {
   config: WiFiConfig;
+  onQRGenerated?: (dataUrl: string) => void;
 }
 
-export const QRDisplay = ({ config }: QRDisplayProps) => {
+export const QRDisplay = ({ config, onQRGenerated }: QRDisplayProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [copied, setCopied] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -47,6 +48,12 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
         // Draw scaled-down version
         ctx.drawImage(printCanvas, 0, 0, previewWidth, previewHeight);
         
+        // Pass the full-size canvas data URL to parent
+        if (onQRGenerated) {
+          const dataUrl = printCanvas.toDataURL('image/png');
+          onQRGenerated(dataUrl);
+        }
+        
         setIsGenerating(false);
       } catch (error) {
         console.error("Error generating preview:", error);
@@ -60,7 +67,7 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
     };
 
     generatePreview();
-  }, [config]);
+  }, [config, onQRGenerated]);
 
   const handleDownloadPNG = () => {
     if (!canvasRef.current) return;
