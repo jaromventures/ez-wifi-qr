@@ -249,61 +249,107 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
 
+      // STEP 1: Full-page background (if uploaded)
+      if (config.backgroundImage) {
+        try {
+          pdf.addImage(
+            config.backgroundImage,
+            'PNG',
+            0, 
+            0,
+            pageWidth, 
+            pageHeight,
+            undefined,
+            'FAST'
+          );
+        } catch (error) {
+          console.warn("Background image failed to load in PDF, using white:", error);
+        }
+      }
+
+      // STEP 2: Calculate window dimensions
+      const windowX = 30;
+      const windowY = config.showCredentialsOnPdf ? 20 : 40;
+      const windowWidth = 150;
+      const windowHeight = config.showCredentialsOnPdf ? 240 : 200;
+
+      // Draw rounded white window with 85% opacity
+      pdf.saveGraphicsState();
+      pdf.setFillColor(255, 255, 255);
+      pdf.setGState({ opacity: 0.85 });
+      pdf.roundedRect(windowX, windowY, windowWidth, windowHeight, 8, 8, 'F');
+      pdf.restoreGraphicsState();
+
+      // STEP 3: Calculate center point for all content
+      const centerX = windowX + windowWidth / 2;
+      let contentY = windowY + 20;
+
       // Custom Title
       const title = (config.customTitle || "Guest Wi-Fi").substring(0, 50);
-      pdf.setFontSize(24);
+      pdf.setFontSize(22);
       pdf.setFont(undefined, 'bold');
-      pdf.text(title, pageWidth / 2, 30, { align: "center", maxWidth: 180 });
-      pdf.setFont(undefined, 'normal');
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(title, centerX, contentY, { align: "center", maxWidth: 140 });
+      contentY += 12;
 
       // Network Info (if showCredentialsOnPdf enabled)
-      let currentY = 50;
       if (config.showCredentialsOnPdf) {
         // Network name
-        pdf.setFontSize(16);
+        pdf.setFontSize(14);
         pdf.setFont(undefined, 'bold');
-        pdf.text(`Network: ${config.ssid}`, pageWidth / 2, currentY, { align: "center", maxWidth: 180 });
-        currentY += 10;
+        pdf.setTextColor(0, 0, 0);
+        const truncatedSsid = config.ssid.length > 30 
+          ? config.ssid.substring(0, 30) + "..." 
+          : config.ssid;
+        pdf.text(`Network: ${truncatedSsid}`, centerX, contentY, { align: "center", maxWidth: 140 });
+        contentY += 8;
         
         // Password in RED & BOLD
         if (config.encryption !== "nopass" && config.password) {
           pdf.setTextColor(220, 38, 38); // Red color
-          pdf.setFontSize(14);
+          pdf.setFontSize(13);
           pdf.setFont(undefined, 'bold');
           const truncatedPassword = config.password.length > 40 
             ? config.password.substring(0, 40) + "..." 
             : config.password;
-          pdf.text(`Password: ${truncatedPassword}`, pageWidth / 2, currentY, { align: "center", maxWidth: 180 });
+          pdf.text(`Password: ${truncatedPassword}`, centerX, contentY, { 
+            align: "center", 
+            maxWidth: 130 
+          });
           pdf.setTextColor(0, 0, 0); // Reset to black
-          pdf.setFont(undefined, 'normal');
-          currentY += 15;
+          contentY += 12;
         } else {
-          pdf.setFontSize(14);
-          pdf.text("Open Network (No Password)", pageWidth / 2, currentY, { align: "center" });
-          currentY += 15;
+          pdf.setFontSize(13);
+          pdf.text("Open Network (No Password)", centerX, contentY, { align: "center" });
+          contentY += 12;
         }
-      } else {
-        currentY = 60;
+        pdf.setFont(undefined, 'normal');
       }
 
-      // QR Code Image (directly from canvas - includes background + QR + text)
+      // STEP 4: QR Code (smaller, centered in window)
+      const qrSize = 90; // 90mm square
+      const qrX = centerX - qrSize / 2;
+      const qrY = contentY + 5;
+
       const imgData = canvasRef.current.toDataURL("image/png");
-      const imgWidth = 100; // 100mm width
-      const imgHeight = imgWidth * (400 / 300); // Maintain 300:400 aspect ratio
-      const xPos = (pageWidth - imgWidth) / 2;
-      
-      pdf.addImage(imgData, "PNG", xPos, currentY, imgWidth, imgHeight);
+      pdf.addImage(imgData, "PNG", qrX, qrY, qrSize, qrSize);
 
-      // Scan Instructions
-      const instructY = currentY + imgHeight + 10;
-      pdf.setFontSize(12);
+      contentY = qrY + qrSize + 10;
+
+      // STEP 5: Scan instruction (inside window)
+      pdf.setFontSize(11);
       pdf.setTextColor(0, 0, 0);
-      pdf.text("Scan with your phone's camera to connect", pageWidth / 2, instructY, { align: "center" });
+      pdf.text("Scan with your phone's camera to connect", centerX, contentY, { 
+        align: "center",
+        maxWidth: 130
+      });
 
-      // Footer
-      pdf.setFontSize(10);
+      // STEP 6: Footer (outside window, at bottom)
+      pdf.setFontSize(9);
       pdf.setTextColor(100, 100, 100);
-      pdf.text("Generated by EZ-WI-FI • 100% Private & Secure", pageWidth / 2, 285, { align: "center" });
+      pdf.text("Generated by EZ-WI-FI • 100% Private & Secure", pageWidth / 2, pageHeight - 15, { 
+        align: "center" 
+      });
 
       // Create blob URL for preview
       const pdfBlob = pdf.output('blob');
