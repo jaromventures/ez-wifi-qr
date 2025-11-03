@@ -7,7 +7,7 @@ import QRCode from "qrcode";
 import jsPDF from "jspdf";
 import { WiFiConfig } from "./WiFiForm";
 import { toast } from "@/hooks/use-toast";
-import { generatePrintableCanvas } from "./PrintableQRGenerator";
+import { generatePrintableCanvas, generateSquareProductCanvas, generatePosterCanvas } from "./PrintableQRGenerator";
 import { CompactProductCard } from "./CompactProductCard";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -24,6 +24,7 @@ interface Product {
   blueprint_id: number;
   mockup_url: string;
   base_price: number;
+  product_type: 'poster' | 'square';
 }
 
 const PRODUCTS: Product[] = [
@@ -34,6 +35,7 @@ const PRODUCTS: Product[] = [
     blueprint_id: 3,
     mockup_url: "/presets/geometric.png",
     base_price: 20.00,
+    product_type: 'poster',
   },
   {
     id: "fridge-magnet",
@@ -42,6 +44,7 @@ const PRODUCTS: Product[] = [
     blueprint_id: 27,
     mockup_url: "/presets/paisley.png",
     base_price: 5.50,
+    product_type: 'square',
   },
   {
     id: "vinyl-sticker",
@@ -50,6 +53,7 @@ const PRODUCTS: Product[] = [
     blueprint_id: 13,
     mockup_url: "/presets/space.png",
     base_price: 4.13,
+    product_type: 'square',
   },
 ];
 
@@ -63,6 +67,8 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string>("");
   const [pdfInstance, setPdfInstance] = useState<jsPDF | null>(null);
   const [loadingProduct, setLoadingProduct] = useState<string | null>(null);
+  const [productCanvases, setProductCanvases] = useState<{ poster: string; square: string } | null>(null);
+  const [qrThumbnail, setQrThumbnail] = useState<string>("");
   
   const wifiString = `WIFI:T:${config.encryption};S:${config.ssid};P:${config.password};H:${config.hidden};;`;
 
@@ -77,8 +83,27 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
       setIsGenerating(true);
 
       try {
-        // Generate full print canvas (2550x3300px)
-        const printCanvas = await generatePrintableCanvas(config);
+        // Generate all product-specific canvases
+        const [printCanvas, posterCanvas, squareCanvas] = await Promise.all([
+          generatePrintableCanvas(config),
+          generatePosterCanvas(config),
+          generateSquareProductCanvas(config),
+        ]);
+        
+        // Store product-specific canvases
+        const posterDataUrl = posterCanvas.toDataURL('image/png');
+        const squareDataUrl = squareCanvas.toDataURL('image/png');
+        setProductCanvases({ poster: posterDataUrl, square: squareDataUrl });
+        
+        // Generate thumbnail for product cards (100x100px)
+        const thumbCanvas = document.createElement('canvas');
+        thumbCanvas.width = 100;
+        thumbCanvas.height = 100;
+        const thumbCtx = thumbCanvas.getContext('2d');
+        if (thumbCtx) {
+          thumbCtx.drawImage(squareCanvas, 0, 0, 100, 100);
+          setQrThumbnail(thumbCanvas.toDataURL('image/png'));
+        }
         
         // Scale down to preview size (maintain 8.5:11 ratio)
         const previewWidth = 400;
@@ -87,10 +112,10 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
         canvas.width = previewWidth;
         canvas.height = previewHeight;
         
-        // Draw scaled-down version
+        // Draw scaled-down version of 8.5x11 canvas
         ctx.drawImage(printCanvas, 0, 0, previewWidth, previewHeight);
         
-        // Pass the full-size canvas data URL to parent
+        // Pass the full-size 8.5x11 canvas data URL to parent
         if (onQRGenerated) {
           const dataUrl = printCanvas.toDataURL('image/png');
           onQRGenerated(dataUrl);
@@ -262,7 +287,7 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
   };
 
   const handleOrder = async (product: Product) => {
-    if (!qrDataUrl) {
+    if (!productCanvases) {
       toast({
         title: "Error",
         description: "QR code is not ready yet",
@@ -279,11 +304,17 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
         description: "Uploading your QR code design",
       });
 
+      // Select the correct canvas based on product type
+      const selectedCanvas = product.product_type === 'poster' 
+        ? productCanvases.poster 
+        : productCanvases.square;
+
       // Upload QR image to Printify and get variant details
       const { data: printifyData, error: printifyError } = await supabase.functions.invoke('printify-upload', {
         body: {
-          qr_data_url: qrDataUrl,
+          qr_data_url: selectedCanvas,
           blueprint_id: product.blueprint_id,
+          product_type: product.product_type,
         },
       });
 
@@ -415,6 +446,7 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
                     description={product.description}
                     price={product.base_price * MARKUP}
                     mockupUrl={product.mockup_url}
+                    qrThumbnailUrl={qrThumbnail}
                     onOrder={() => handleOrder(product)}
                     isLoading={loadingProduct === product.id}
                   />

@@ -7,6 +7,7 @@ interface CompactProductCardProps {
   description: string;
   price: number;
   mockupUrl: string;
+  qrThumbnailUrl?: string;
   onOrder: () => void;
   isLoading: boolean;
 }
@@ -16,18 +17,28 @@ export const CompactProductCard = ({
   description,
   price,
   mockupUrl,
+  qrThumbnailUrl,
   onOrder,
   isLoading,
 }: CompactProductCardProps) => {
   return (
     <Card className="flex-shrink-0 w-72 hover:shadow-md transition-shadow">
       <div className="flex gap-3 p-3">
-        <div className="w-20 h-20 rounded overflow-hidden bg-muted flex-shrink-0">
+        <div className="relative w-20 h-20 rounded overflow-hidden bg-muted flex-shrink-0">
           <img
             src={mockupUrl}
             alt={name}
             className="w-full h-full object-cover"
           />
+          {qrThumbnailUrl && (
+            <div className="absolute inset-0 flex items-center justify-center p-2">
+              <img
+                src={qrThumbnailUrl}
+                alt="Your QR design"
+                className="w-14 h-14 rounded shadow-sm"
+              />
+            </div>
+          )}
         </div>
         <div className="flex-1 flex flex-col min-w-0">
           <h4 className="text-sm font-semibold truncate">{name}</h4>

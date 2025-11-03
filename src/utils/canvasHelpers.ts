@@ -15,6 +15,18 @@ export const PRINT_CONFIG: CanvasConfig = {
   dpi: 300,
 };
 
+export const POSTER_CONFIG: CanvasConfig = {
+  width: 5400,  // 18 inches @ 300 DPI
+  height: 7200, // 24 inches @ 300 DPI
+  dpi: 300,
+};
+
+export const SQUARE_4X4_CONFIG: CanvasConfig = {
+  width: 1200,  // 4 inches @ 300 DPI
+  height: 1200, // 4 inches @ 300 DPI
+  dpi: 300,
+};
+
 /**
  * Draws a rounded rectangle with transparent background
  */

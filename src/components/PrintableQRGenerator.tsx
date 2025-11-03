@@ -5,7 +5,10 @@
 
 import QRCode from "qrcode";
 import { 
-  PRINT_CONFIG, 
+  PRINT_CONFIG,
+  POSTER_CONFIG,
+  SQUARE_4X4_CONFIG,
+  CanvasConfig,
   drawTransparentBox, 
   enableHighQualityText, 
   drawTextWithShadow,
@@ -305,4 +308,348 @@ function drawCredentials(ctx: CanvasRenderingContext2D, config: WiFiConfig) {
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "center";
   ctx.fillText(footerText, centerX, footerY + 20);
+}
+
+/**
+ * Generate square product canvas for 4x4" products (magnets, stickers)
+ * Optimized for small square format with centered QR code
+ */
+export async function generateSquareProductCanvas(
+  config: WiFiConfig
+): Promise<HTMLCanvasElement> {
+  const canvas = document.createElement("canvas");
+  canvas.width = SQUARE_4X4_CONFIG.width;
+  canvas.height = SQUARE_4X4_CONFIG.height;
+  
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Failed to get canvas context");
+  }
+
+  enableHighQualityText(ctx);
+
+  // Draw background
+  if (config.backgroundImage) {
+    await drawSquareBackground(ctx, config.backgroundImage);
+  } else {
+    const gradient = ctx.createLinearGradient(0, 0, SQUARE_4X4_CONFIG.width, SQUARE_4X4_CONFIG.height);
+    gradient.addColorStop(0, "#f8f9fa");
+    gradient.addColorStop(1, "#e9ecef");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, SQUARE_4X4_CONFIG.width, SQUARE_4X4_CONFIG.height);
+  }
+
+  // Generate WiFi string
+  const wifiString =
+    config.encryption === "nopass"
+      ? `WIFI:T:nopass;S:${config.ssid};;`
+      : `WIFI:T:${config.encryption};S:${config.ssid};P:${config.password};;`;
+
+  // Generate large QR code for 4x4" canvas
+  const qrSize = 1000; // Large QR for 4x4" @ 300 DPI
+  const qrCanvas = document.createElement("canvas");
+  
+  await QRCode.toCanvas(qrCanvas, wifiString, {
+    width: qrSize,
+    margin: 2,
+    color: {
+      dark: "#000000",
+      light: "#ffffff",
+    },
+    errorCorrectionLevel: "H",
+  });
+
+  // Make white pixels transparent
+  const qrCtx = qrCanvas.getContext("2d");
+  if (qrCtx) {
+    const imageData = qrCtx.getImageData(0, 0, qrSize, qrSize);
+    const data = imageData.data;
+    
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      
+      if (r > 250 && g > 250 && b > 250) {
+        data[i + 3] = 0;
+      }
+    }
+    
+    qrCtx.putImageData(imageData, 0, 0);
+  }
+
+  // Center QR code
+  const centerX = SQUARE_4X4_CONFIG.width / 2;
+  const centerY = SQUARE_4X4_CONFIG.height / 2;
+  const qrX = centerX - qrSize / 2;
+  const qrY = centerY - qrSize / 2;
+
+  // Draw background box with extracted color
+  const padding = 20;
+  const qrBgColor = extractColorFromRegion(
+    ctx,
+    qrX - padding,
+    qrY - padding,
+    qrSize + (padding * 2),
+    qrSize + (padding * 2),
+    0.90
+  );
+
+  drawTransparentBox(
+    ctx,
+    qrX - padding,
+    qrY - padding,
+    qrSize + (padding * 2),
+    qrSize + (padding * 2),
+    15,
+    qrBgColor
+  );
+
+  // Draw QR code
+  ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+
+  return canvas;
+}
+
+async function drawSquareBackground(
+  ctx: CanvasRenderingContext2D,
+  backgroundImage: string
+): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, SQUARE_4X4_CONFIG.width, SQUARE_4X4_CONFIG.height);
+      resolve();
+    };
+    
+    img.onerror = () => {
+      const gradient = ctx.createLinearGradient(0, 0, SQUARE_4X4_CONFIG.width, SQUARE_4X4_CONFIG.height);
+      gradient.addColorStop(0, "#f8f9fa");
+      gradient.addColorStop(1, "#e9ecef");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, SQUARE_4X4_CONFIG.width, SQUARE_4X4_CONFIG.height);
+      resolve();
+    };
+    
+    img.src = backgroundImage;
+  });
+}
+
+/**
+ * Generate poster canvas for 18x24" framed prints
+ */
+export async function generatePosterCanvas(
+  config: WiFiConfig
+): Promise<HTMLCanvasElement> {
+  const canvas = document.createElement("canvas");
+  canvas.width = POSTER_CONFIG.width;
+  canvas.height = POSTER_CONFIG.height;
+  
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Failed to get canvas context");
+  }
+
+  enableHighQualityText(ctx);
+
+  // Draw background
+  if (config.backgroundImage) {
+    await drawPosterBackground(ctx, config.backgroundImage);
+  } else {
+    const gradient = ctx.createLinearGradient(0, 0, 0, POSTER_CONFIG.height);
+    gradient.addColorStop(0, "#f8f9fa");
+    gradient.addColorStop(1, "#e9ecef");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, POSTER_CONFIG.width, POSTER_CONFIG.height);
+  }
+
+  // Layout zones for poster
+  const topZoneEnd = POSTER_CONFIG.height * 0.2;
+  const qrZoneStart = topZoneEnd;
+  const qrZoneEnd = POSTER_CONFIG.height * 0.75;
+  const bottomZoneStart = qrZoneEnd;
+
+  const centerX = POSTER_CONFIG.width / 2;
+
+  // Draw title
+  if (config.showTitleInPdf !== false) {
+    const titleBoxY = 400;
+    const titleBoxWidth = 4000;
+    const titleBoxHeight = 300;
+
+    const bgColor = extractColorFromRegion(
+      ctx,
+      centerX - titleBoxWidth / 2,
+      titleBoxY,
+      titleBoxWidth,
+      titleBoxHeight,
+      0.75
+    );
+
+    drawTransparentBox(
+      ctx,
+      centerX - titleBoxWidth / 2,
+      titleBoxY,
+      titleBoxWidth,
+      titleBoxHeight,
+      40,
+      bgColor
+    );
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 220px 'Helvetica Neue', Helvetica, Arial, sans-serif";
+    ctx.textAlign = "center";
+    drawTextWithShadow(ctx, config.customTitle || "Your WiFi QR Code", centerX, titleBoxY + titleBoxHeight / 2);
+  }
+
+  // Generate QR code
+  const wifiString =
+    config.encryption === "nopass"
+      ? `WIFI:T:nopass;S:${config.ssid};;`
+      : `WIFI:T:${config.encryption};S:${config.ssid};P:${config.password};;`;
+
+  const qrSize = 3600;
+  const qrCanvas = document.createElement("canvas");
+  
+  await QRCode.toCanvas(qrCanvas, wifiString, {
+    width: qrSize,
+    margin: 2,
+    color: {
+      dark: "#000000",
+      light: "#ffffff",
+    },
+    errorCorrectionLevel: "H",
+  });
+
+  // Make white pixels transparent
+  const qrCtx = qrCanvas.getContext("2d");
+  if (qrCtx) {
+    const imageData = qrCtx.getImageData(0, 0, qrSize, qrSize);
+    const data = imageData.data;
+    
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      
+      if (r > 250 && g > 250 && b > 250) {
+        data[i + 3] = 0;
+      }
+    }
+    
+    qrCtx.putImageData(imageData, 0, 0);
+  }
+
+  // Position QR in middle zone
+  const qrY = qrZoneStart + ((qrZoneEnd - qrZoneStart) - qrSize) / 2;
+  const padding = 60;
+
+  const qrBgColor = extractColorFromRegion(
+    ctx,
+    centerX - qrSize / 2 - padding,
+    qrY - padding,
+    qrSize + (padding * 2),
+    qrSize + (padding * 2),
+    0.85
+  );
+
+  drawTransparentBox(
+    ctx,
+    centerX - qrSize / 2 - padding,
+    qrY - padding,
+    qrSize + (padding * 2),
+    qrSize + (padding * 2),
+    40,
+    qrBgColor
+  );
+
+  ctx.drawImage(qrCanvas, centerX - qrSize / 2, qrY, qrSize, qrSize);
+
+  // Draw credentials in bottom zone
+  const credBoxWidth = 4000;
+  const credBoxHeight = 240;
+  const networkY = bottomZoneStart + 300;
+
+  const networkBgColor = extractColorFromRegion(
+    ctx,
+    centerX - credBoxWidth / 2,
+    networkY,
+    credBoxWidth,
+    credBoxHeight,
+    0.80
+  );
+
+  drawTransparentBox(
+    ctx,
+    centerX - credBoxWidth / 2,
+    networkY,
+    credBoxWidth,
+    credBoxHeight,
+    40,
+    networkBgColor
+  );
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 160px 'Helvetica Neue', Helvetica, Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(`Network: ${config.ssid}`, centerX, networkY + credBoxHeight / 2);
+
+  const passwordY = networkY + credBoxHeight + 50;
+
+  const passwordBgColor = extractColorFromRegion(
+    ctx,
+    centerX - credBoxWidth / 2,
+    passwordY,
+    credBoxWidth,
+    credBoxHeight,
+    0.80
+  );
+
+  drawTransparentBox(
+    ctx,
+    centerX - credBoxWidth / 2,
+    passwordY,
+    credBoxWidth,
+    credBoxHeight,
+    40,
+    passwordBgColor
+  );
+
+  if (config.encryption === "nopass") {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText("Open Network (No Password)", centerX, passwordY + credBoxHeight / 2);
+  } else {
+    ctx.fillStyle = "#ef4444";
+    ctx.fillText(`Password: ${config.password}`, centerX, passwordY + credBoxHeight / 2);
+  }
+
+  return canvas;
+}
+
+async function drawPosterBackground(
+  ctx: CanvasRenderingContext2D,
+  backgroundImage: string
+): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, POSTER_CONFIG.width, POSTER_CONFIG.height);
+      resolve();
+    };
+    
+    img.onerror = () => {
+      const gradient = ctx.createLinearGradient(0, 0, 0, POSTER_CONFIG.height);
+      gradient.addColorStop(0, "#f8f9fa");
+      gradient.addColorStop(1, "#e9ecef");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, POSTER_CONFIG.width, POSTER_CONFIG.height);
+      resolve();
+    };
+    
+    img.src = backgroundImage;
+  });
 }

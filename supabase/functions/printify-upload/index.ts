@@ -16,9 +16,10 @@ serve(async (req) => {
       throw new Error('PRINTIFY_API_KEY not configured');
     }
 
-    const { qr_data_url, blueprint_id } = await req.json();
+    const { qr_data_url, blueprint_id, product_type } = await req.json();
 
     console.log('Uploading image to Printify for blueprint:', blueprint_id);
+    console.log('Product type:', product_type);
 
     // Convert data URL to base64 string without prefix
     const base64String = qr_data_url.split(',')[1];
