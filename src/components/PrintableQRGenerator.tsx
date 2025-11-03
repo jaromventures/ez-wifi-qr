@@ -8,7 +8,8 @@ import {
   PRINT_CONFIG, 
   drawTransparentBox, 
   enableHighQualityText, 
-  drawTextWithShadow 
+  drawTextWithShadow,
+  extractColorFromRegion
 } from "@/utils/canvasHelpers";
 
 export interface WiFiConfig {
@@ -26,7 +27,7 @@ const MIDDLE_ZONE_START = 825;   // Middle 50% for QR
 const MIDDLE_ZONE_END = 2475;
 const BOTTOM_ZONE_START = 2475;  // Bottom 25% for credentials
 
-const QR_SIZE = 1200; // Large, high-quality QR code
+const QR_SIZE = 1500; // Large, high-quality QR code
 
 export async function generatePrintableCanvas(
   config: WiFiConfig
@@ -101,7 +102,17 @@ function drawTitle(ctx: CanvasRenderingContext2D, title: string) {
   const titleBoxWidth = 1900;
   const titleBoxHeight = 180;
 
-  // Draw transparent box
+  // Extract color from title area of background
+  const bgColor = extractColorFromRegion(
+    ctx,
+    centerX - titleBoxWidth / 2,
+    titleBoxY,
+    titleBoxWidth,
+    titleBoxHeight,
+    0.75
+  );
+
+  // Draw transparent box with extracted color
   drawTransparentBox(
     ctx,
     centerX - titleBoxWidth / 2,
@@ -109,7 +120,7 @@ function drawTitle(ctx: CanvasRenderingContext2D, title: string) {
     titleBoxWidth,
     titleBoxHeight,
     30,
-    "rgba(0, 0, 0, 0.65)"
+    bgColor
   );
 
   // Draw title text
@@ -167,6 +178,17 @@ function drawCredentials(ctx: CanvasRenderingContext2D, config: WiFiConfig) {
 
   // Network name box
   const networkY = 2550;
+  
+  // Extract color from network area
+  const networkBgColor = extractColorFromRegion(
+    ctx,
+    centerX - credBoxWidth / 2,
+    networkY,
+    credBoxWidth,
+    credBoxHeight,
+    0.80
+  );
+  
   drawTransparentBox(
     ctx,
     centerX - credBoxWidth / 2,
@@ -174,7 +196,7 @@ function drawCredentials(ctx: CanvasRenderingContext2D, config: WiFiConfig) {
     credBoxWidth,
     credBoxHeight,
     30,
-    "rgba(0, 0, 0, 0.75)"
+    networkBgColor
   );
 
   ctx.fillStyle = "#ffffff";
@@ -184,6 +206,17 @@ function drawCredentials(ctx: CanvasRenderingContext2D, config: WiFiConfig) {
 
   // Password box (or "Open Network")
   const passwordY = networkY + credBoxHeight + 30;
+  
+  // Extract color from password area
+  const passwordBgColor = extractColorFromRegion(
+    ctx,
+    centerX - credBoxWidth / 2,
+    passwordY,
+    credBoxWidth,
+    credBoxHeight,
+    0.80
+  );
+  
   drawTransparentBox(
     ctx,
     centerX - credBoxWidth / 2,
@@ -191,7 +224,7 @@ function drawCredentials(ctx: CanvasRenderingContext2D, config: WiFiConfig) {
     credBoxWidth,
     credBoxHeight,
     30,
-    "rgba(0, 0, 0, 0.75)"
+    passwordBgColor
   );
 
   if (config.encryption === "nopass") {

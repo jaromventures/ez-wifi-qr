@@ -101,3 +101,36 @@ export function wrapText(
   lines.push(currentLine);
   return lines;
 }
+
+/**
+ * Extracts average color from a region of the canvas
+ * Returns an rgba color string with specified opacity
+ */
+export function extractColorFromRegion(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  opacity: number = 0.75
+): string {
+  const imageData = ctx.getImageData(x, y, width, height);
+  const data = imageData.data;
+  
+  let r = 0, g = 0, b = 0;
+  let totalPixels = 0;
+  
+  // Sample every 10th pixel for performance
+  for (let i = 0; i < data.length; i += 40) {
+    r += data[i];
+    g += data[i + 1];
+    b += data[i + 2];
+    totalPixels++;
+  }
+  
+  r = Math.floor(r / totalPixels);
+  g = Math.floor(g / totalPixels);
+  b = Math.floor(b / totalPixels);
+  
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}

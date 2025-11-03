@@ -24,162 +24,43 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
   const wifiString = `WIFI:T:${config.encryption};S:${config.ssid};P:${config.password};H:${config.hidden};;`;
 
   useEffect(() => {
-    if (canvasRef.current) {
+    const generatePreview = async () => {
+      if (!canvasRef.current) return;
+      
       const canvas = canvasRef.current;
       const ctx = canvas.getContext("2d");
-      
-      if (config.backgroundImage && ctx) {
-        setIsGenerating(true);
+      if (!ctx) return;
+
+      setIsGenerating(true);
+
+      try {
+        // Generate full print canvas (2550x3300px)
+        const printCanvas = await generatePrintableCanvas(config);
         
-        // Load background image
-        const img = new Image();
-        img.onload = () => {
-          // Create temporary canvas for QR generation
-          const tempCanvas = document.createElement("canvas");
-          tempCanvas.width = 300;
-          tempCanvas.height = 300;
-          
-          // Generate QR on temporary canvas first with medium error correction for backgrounds
-          QRCode.toCanvas(
-            tempCanvas,
-            wifiString,
-            {
-              width: 300,
-              margin: 2,
-              color: {
-                dark: "#000000",
-                light: "#FFFFFF00", // Transparent white so background shows through
-              },
-              errorCorrectionLevel: "M", // Medium error correction for backgrounds
-            },
-            (error) => {
-              if (error) {
-                console.error("QR generation with background failed:", error);
-                
-                // Fallback: Generate without background
-                QRCode.toCanvas(
-                  canvas,
-                  wifiString,
-                  {
-                    width: 300,
-                    margin: 2,
-                    color: {
-                      dark: "#000000",
-                      light: "#ffffff",
-                    },
-                    errorCorrectionLevel: "M",
-                  },
-                  (fallbackError) => {
-                    setIsGenerating(false);
-                    if (fallbackError) {
-                      toast({
-                        title: "QR Generation Error",
-                        description: "Wi-Fi information too complex. Try shortening your password.",
-                        variant: "destructive",
-                      });
-                    } else {
-                      toast({
-                        title: "Background Removed",
-                        description: "Background too complex - QR code generated without background for better reliability.",
-                      });
-                    }
-                  }
-                );
-                return;
-              }
-              
-              // Success - composite background + QR on main canvas
-              canvas.width = 300;
-              canvas.height = 300; // NO extra space
-              
-              // Draw background (full canvas)
-              ctx.drawImage(img, 0, 0, 300, 300);
-              
-              // Draw QR code on top
-              ctx.drawImage(tempCanvas, 0, 0);
-              
-              setIsGenerating(false);
-            }
-          );
-        };
+        // Scale down to preview size (maintain 8.5:11 ratio)
+        const previewWidth = 400;
+        const previewHeight = Math.round(previewWidth * (3300 / 2550)); // ~517px
         
-        img.onerror = () => {
-          setIsGenerating(false);
-          toast({
-            title: "Image Load Error",
-            description: "Failed to load background image. Generating QR without background.",
-            variant: "destructive",
-          });
-          
-          // Fallback to no background
-          QRCode.toCanvas(
-            canvas,
-            wifiString,
-            {
-              width: 300,
-              margin: 2,
-              color: {
-                dark: "#000000",
-                light: "#ffffff",
-              },
-              errorCorrectionLevel: "M",
-            }
-          );
-        };
+        canvas.width = previewWidth;
+        canvas.height = previewHeight;
         
-        img.src = config.backgroundImage;
-      } else {
-        setIsGenerating(true);
+        // Draw scaled-down version
+        ctx.drawImage(printCanvas, 0, 0, previewWidth, previewHeight);
         
-        // No background - standard QR generation with text
-        const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = 300;
-        tempCanvas.height = 300;
-        
-        QRCode.toCanvas(
-          tempCanvas,
-          wifiString,
-          {
-            width: 300,
-            margin: 2,
-            color: {
-              dark: "#000000",
-              light: "#ffffff",
-            },
-            errorCorrectionLevel: "M",
-          },
-          (error) => {
-            if (error) {
-              setIsGenerating(false);
-              toast({
-                title: "QR Generation Error",
-                description: "Wi-Fi information too complex. Try shortening your password.",
-                variant: "destructive",
-              });
-              console.error(error);
-              return;
-            }
-            
-            // Draw QR and text on main canvas
-            const ctx = canvas.getContext("2d");
-            if (ctx) {
-              canvas.width = 300;
-              canvas.height = 300; // NO extra space
-              
-              // White background (for QR area only)
-              ctx.fillStyle = "#FFFFFF";
-              ctx.fillRect(0, 0, 300, 300);
-              
-              // Draw QR code
-              ctx.drawImage(tempCanvas, 0, 0);
-            }
-            
-            setIsGenerating(false);
-          }
-        );
+        setIsGenerating(false);
+      } catch (error) {
+        console.error("Error generating preview:", error);
+        setIsGenerating(false);
+        toast({
+          title: "Preview Generation Error",
+          description: "Failed to generate preview. Please try again.",
+          variant: "destructive",
+        });
       }
-    }
-  }, [wifiString, config.backgroundImage]);
+    };
+
+    generatePreview();
+  }, [config]);
 
   const handleDownloadPNG = () => {
     if (!canvasRef.current) return;
