@@ -178,7 +178,7 @@ async function drawQRCode(
     // Calculate centered position in middle zone
     const centerX = PRINT_CONFIG.width / 2;
     const middleZoneHeight = MIDDLE_ZONE_END - MIDDLE_ZONE_START;
-    const qrY = MIDDLE_ZONE_START + (middleZoneHeight - QR_SIZE) / 2;
+    const qrY = MIDDLE_ZONE_START + (middleZoneHeight - QR_SIZE) / 2 - 100; // Move up for more bottom spacing
 
     // Extract color from QR area of background (before drawing QR)
     const padding = 40;
