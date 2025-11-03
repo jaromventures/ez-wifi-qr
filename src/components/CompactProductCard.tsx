@@ -22,18 +22,18 @@ export const CompactProductCard = ({
   isLoading,
 }: CompactProductCardProps) => {
   return (
-    <Card className="hover:shadow-lg transition-shadow h-full">
-      <div className="flex flex-col gap-4 p-4 h-full">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="w-full sm:w-32 h-32 rounded overflow-hidden bg-muted flex-shrink-0">
+    <Card className="hover:shadow-lg transition-all duration-300 h-full">
+      <div className="flex flex-col gap-6 p-6 h-full">
+        <div className="flex flex-col gap-4">
+          <div className="w-full h-56 sm:h-64 md:h-72 rounded-lg overflow-hidden bg-muted">
             <img
               src={mockupUrl}
               alt={name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain p-4"
             />
           </div>
           {qrThumbnailUrl && (
-            <div className="w-full sm:w-32 h-32 rounded overflow-hidden bg-background border flex-shrink-0 flex items-center justify-center p-2">
+            <div className="w-full h-40 sm:h-48 rounded-lg overflow-hidden bg-background border-2 border-muted flex items-center justify-center p-4">
               <img
                 src={qrThumbnailUrl}
                 alt="Your QR design"
@@ -43,19 +43,19 @@ export const CompactProductCard = ({
           )}
         </div>
         
-        <div className="flex-1 flex flex-col">
-          <h4 className="text-lg font-semibold">{name}</h4>
-          <p className="text-sm text-muted-foreground flex-1">{description}</p>
-          <div className="text-2xl font-bold mt-2">${price.toFixed(2)}</div>
+        <div className="flex-1 flex flex-col gap-3">
+          <h4 className="text-xl font-semibold">{name}</h4>
+          <p className="text-sm text-muted-foreground flex-1 leading-relaxed">{description}</p>
+          <div className="text-3xl font-bold mt-auto">${price.toFixed(2)}</div>
           <Button 
-            size="default" 
+            size="lg" 
             className="mt-4 w-full"
             onClick={onOrder}
             disabled={isLoading}
           >
             {isLoading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 Processing...
               </>
             ) : (

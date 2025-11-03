@@ -76,33 +76,67 @@ serve(async (req) => {
 
     if (posters.length > 0) {
       const poster = posters[0];
+      // Fetch the full blueprint details to get images
+      const posterDetailsResponse = await fetch(
+        `https://api.printify.com/v1/catalog/blueprints/${poster.id}.json`,
+        {
+          headers: {
+            'Authorization': `Bearer ${PRINTIFY_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      const posterDetails = await posterDetailsResponse.json();
+      
       selectedProducts.push({
         blueprintId: poster.id,
         title: poster.title,
         brand: poster.brand,
-        mockupUrl: poster.images?.[0]?.src || null,
+        mockupUrl: posterDetails.images?.[0]?.src || '/presets/geometric.png',
         category: 'poster'
       });
     }
 
     if (magnets.length > 0) {
       const magnet = magnets[0];
+      const magnetDetailsResponse = await fetch(
+        `https://api.printify.com/v1/catalog/blueprints/${magnet.id}.json`,
+        {
+          headers: {
+            'Authorization': `Bearer ${PRINTIFY_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      const magnetDetails = await magnetDetailsResponse.json();
+      
       selectedProducts.push({
         blueprintId: magnet.id,
         title: magnet.title,
         brand: magnet.brand,
-        mockupUrl: magnet.images?.[0]?.src || null,
+        mockupUrl: magnetDetails.images?.[0]?.src || '/presets/paisley.png',
         category: 'magnet'
       });
     }
 
     if (stickers.length > 0) {
       const sticker = stickers[0];
+      const stickerDetailsResponse = await fetch(
+        `https://api.printify.com/v1/catalog/blueprints/${sticker.id}.json`,
+        {
+          headers: {
+            'Authorization': `Bearer ${PRINTIFY_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      const stickerDetails = await stickerDetailsResponse.json();
+      
       selectedProducts.push({
         blueprintId: sticker.id,
         title: sticker.title,
         brand: sticker.brand,
-        mockupUrl: sticker.images?.[0]?.src || null,
+        mockupUrl: stickerDetails.images?.[0]?.src || '/presets/space.png',
         category: 'sticker'
       });
     }
