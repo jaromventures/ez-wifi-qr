@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Hero } from "@/components/Hero";
 import { WiFiForm, WiFiConfig } from "@/components/WiFiForm";
 import { QRDisplay } from "@/components/QRDisplay";
-import { PremiumBanner } from "@/components/PremiumBanner";
-import { PrintfulProducts } from "@/components/PrintfulProducts";
+import { PrintifyProducts } from "@/components/PrintifyProducts";
 import { Button } from "@/components/ui/button";
 import { ArrowUp } from "lucide-react";
 
@@ -62,9 +61,7 @@ const Index = () => {
               </div>
             </div>
 
-            <PremiumBanner />
-
-            {qrDataUrl && <PrintfulProducts config={wifiConfig} qrDataUrl={qrDataUrl} />}
+            {qrDataUrl && <PrintifyProducts config={wifiConfig} qrDataUrl={qrDataUrl} />}
           </>
         )}
       </main>
