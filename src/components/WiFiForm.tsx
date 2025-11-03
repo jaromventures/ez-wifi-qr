@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { X } from "lucide-react";
+import { X, Upload } from "lucide-react";
 import { optimizeImage, getImageDimensions } from "./ImageOptimizer";
 import { toast } from "@/hooks/use-toast";
 
@@ -23,6 +23,27 @@ export interface WiFiConfig {
   backgroundImage?: string;
 }
 
+const BACKGROUND_PRESETS = [
+  { 
+    id: 'space', 
+    label: 'Space Scene', 
+    src: '/presets/space.png',
+    description: 'Milky Way galaxy view'
+  },
+  { 
+    id: 'geometric', 
+    label: 'Tech Geometric', 
+    src: '/presets/geometric.png',
+    description: 'Circuit board pattern'
+  },
+  { 
+    id: 'paisley', 
+    label: 'Paisley Floral', 
+    src: '/presets/paisley.png',
+    description: 'Elegant floral design'
+  },
+];
+
 export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
   const [ssid, setSsid] = useState("");
   const [password, setPassword] = useState("");
@@ -32,6 +53,8 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
   const [customTitle, setCustomTitle] = useState("Guest Wi-Fi");
   const [backgroundImage, setBackgroundImage] = useState<string>();
   const [backgroundImageInfo, setBackgroundImageInfo] = useState<{ name: string; size: string; optimized: boolean }>();
+  const [selectedPreset, setSelectedPreset] = useState<string>('none');
+  const [isLoadingPreset, setIsLoadingPreset] = useState(false);
   const [errors, setErrors] = useState<{ ssid?: string; password?: string }>({});
 
   const validateForm = (): boolean => {
@@ -126,9 +149,71 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
     }
   };
 
+  const handlePresetSelect = async (presetId: string) => {
+    setSelectedPreset(presetId);
+    setIsLoadingPreset(true);
+    
+    if (presetId === 'none') {
+      setBackgroundImage(undefined);
+      setBackgroundImageInfo(undefined);
+      setIsLoadingPreset(false);
+      return;
+    }
+    
+    const preset = BACKGROUND_PRESETS.find(p => p.id === presetId);
+    if (!preset?.src) {
+      setIsLoadingPreset(false);
+      return;
+    }
+    
+    try {
+      const response = await fetch(preset.src);
+      const blob = await response.blob();
+      
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setBackgroundImage(dataUrl);
+        
+        setBackgroundImageInfo({
+          name: preset.label,
+          size: `${(blob.size / 1024).toFixed(0)} KB`,
+          optimized: false,
+        });
+        
+        setIsLoadingPreset(false);
+        
+        toast({
+          title: "Preset Applied",
+          description: `${preset.label} background loaded successfully`,
+        });
+      };
+      
+      reader.onerror = () => {
+        setIsLoadingPreset(false);
+        toast({
+          title: "Failed to Load Preset",
+          description: "Please try a different preset or upload custom image",
+          variant: "destructive",
+        });
+      };
+      
+      reader.readAsDataURL(blob);
+    } catch (error) {
+      console.error("Error loading preset:", error);
+      setIsLoadingPreset(false);
+      toast({
+        title: "Failed to Load Preset",
+        description: "Please try a different preset or upload custom image",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleRemoveBackground = () => {
     setBackgroundImage(undefined);
     setBackgroundImageInfo(undefined);
+    setSelectedPreset('none');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -252,41 +337,140 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="background">Background Image (Optional)</Label>
-            <Input
-              id="background"
-              type="file"
-              accept="image/*"
-              onChange={handleBackgroundUpload}
-              className="cursor-pointer"
-            />
-            {backgroundImage && backgroundImageInfo && (
-              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-3">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">{backgroundImageInfo.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {backgroundImageInfo.size}
-                    {backgroundImageInfo.optimized && " • Optimized"}
-                  </p>
+          <div className="space-y-3">
+            <Label>Background Style</Label>
+            <p className="text-xs text-muted-foreground">
+              Choose a preset background or upload your own custom image
+            </p>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <label
+                className={`cursor-pointer rounded-lg border-2 p-3 transition-all hover:border-primary/50 ${
+                  selectedPreset === 'none' ? 'border-primary bg-primary/5 shadow-sm' : 'border-border'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="background-preset"
+                  value="none"
+                  checked={selectedPreset === 'none'}
+                  onChange={() => handlePresetSelect('none')}
+                  className="sr-only"
+                />
+                <div className="text-center">
+                  <div className="bg-background border-2 border-dashed border-muted-foreground/30 rounded-lg w-full h-20 flex items-center justify-center mb-2">
+                    <span className="text-muted-foreground text-sm">No Background</span>
+                  </div>
+                  <p className="text-sm font-medium">Plain White</p>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRemoveBackground}
-                  className="h-8 w-8 p-0"
+              </label>
+              
+              {BACKGROUND_PRESETS.map(preset => (
+                <label
+                  key={preset.id}
+                  className={`cursor-pointer rounded-lg border-2 p-3 transition-all hover:border-primary/50 ${
+                    selectedPreset === preset.id ? 'border-primary bg-primary/5 shadow-sm' : 'border-border'
+                  }`}
                 >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-            {!backgroundImage && (
-              <p className="text-xs text-muted-foreground">
-                💡 Tip: Use images under 1MB and 1500x1500px for best results
-              </p>
-            )}
+                  <input
+                    type="radio"
+                    name="background-preset"
+                    value={preset.id}
+                    checked={selectedPreset === preset.id}
+                    onChange={() => handlePresetSelect(preset.id)}
+                    className="sr-only"
+                    disabled={isLoadingPreset}
+                  />
+                  <div className="text-center">
+                    <div className="relative overflow-hidden rounded-lg w-full h-20 mb-2">
+                      <img 
+                        src={preset.src} 
+                        alt={preset.label} 
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      {isLoadingPreset && selectedPreset === preset.id && (
+                        <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                          <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium">{preset.label}</p>
+                    <p className="text-xs text-muted-foreground">{preset.description}</p>
+                  </div>
+                </label>
+              ))}
+              
+              <label
+                className={`cursor-pointer rounded-lg border-2 p-3 transition-all hover:border-primary/50 ${
+                  selectedPreset === 'custom' ? 'border-primary bg-primary/5 shadow-sm' : 'border-border'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="background-preset"
+                  value="custom"
+                  checked={selectedPreset === 'custom'}
+                  onChange={() => setSelectedPreset('custom')}
+                  className="sr-only"
+                />
+                <div className="text-center">
+                  <div className="bg-background border-2 border-dashed border-primary/50 rounded-lg w-full h-20 flex flex-col items-center justify-center mb-2">
+                    <Upload className="w-6 h-6 text-primary mb-1" />
+                    <span className="text-xs text-muted-foreground">Upload</span>
+                  </div>
+                  <p className="text-sm font-medium">Custom Image</p>
+                  <p className="text-xs text-muted-foreground">Your own file</p>
+                </div>
+              </label>
+            </div>
           </div>
+
+          {selectedPreset === 'custom' && (
+            <div className="space-y-2">
+              <Label htmlFor="background">Upload Custom Background</Label>
+              <Input
+                id="background"
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  handleBackgroundUpload(e);
+                  if (e.target.files?.[0]) {
+                    setSelectedPreset('custom');
+                  }
+                }}
+                className="cursor-pointer"
+              />
+              {backgroundImage && backgroundImageInfo && selectedPreset === 'custom' && (
+                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-3">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-foreground">{backgroundImageInfo.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {backgroundImageInfo.size}
+                      {backgroundImageInfo.optimized && " • Optimized"}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      handleRemoveBackground();
+                      setSelectedPreset('none');
+                    }}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              {!backgroundImage && (
+                <p className="text-xs text-muted-foreground">
+                  💡 Tip: Use images under 1MB and 1500x1500px for best results
+                </p>
+              )}
+            </div>
+          )}
 
           <Button type="submit" size="touch" variant="hero" className="w-full">
             Generate QR Code
