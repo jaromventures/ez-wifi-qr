@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.printify-upload]
 verify_jwt = false
+
+[functions.get-printify-blueprints]
+verify_jwt = false

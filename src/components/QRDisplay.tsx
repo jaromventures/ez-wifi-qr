@@ -8,19 +8,61 @@ import jsPDF from "jspdf";
 import { WiFiConfig } from "./WiFiForm";
 import { toast } from "@/hooks/use-toast";
 import { generatePrintableCanvas } from "./PrintableQRGenerator";
+import { CompactProductCard } from "./CompactProductCard";
+import { supabase } from "@/integrations/supabase/client";
 
 interface QRDisplayProps {
   config: WiFiConfig;
   onQRGenerated?: (dataUrl: string) => void;
+  qrDataUrl?: string;
 }
 
-export const QRDisplay = ({ config, onQRGenerated }: QRDisplayProps) => {
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  blueprint_id: number;
+  mockup_url: string;
+  base_price: number;
+}
+
+const PRODUCTS: Product[] = [
+  {
+    id: "framed-print",
+    name: 'Framed Print (18x24")',
+    description: "Premium framed poster",
+    blueprint_id: 3,
+    mockup_url: "/presets/geometric.png",
+    base_price: 20.00,
+  },
+  {
+    id: "fridge-magnet",
+    name: 'Fridge Magnet (4x4")',
+    description: "Kiss cut magnet",
+    blueprint_id: 27,
+    mockup_url: "/presets/paisley.png",
+    base_price: 5.50,
+  },
+  {
+    id: "vinyl-sticker",
+    name: 'Vinyl Sticker (4x4")',
+    description: "Waterproof die-cut sticker",
+    blueprint_id: 13,
+    mockup_url: "/presets/space.png",
+    base_price: 4.13,
+  },
+];
+
+const MARKUP = 1.45; // 45% markup
+
+export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [copied, setCopied] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string>("");
   const [pdfInstance, setPdfInstance] = useState<jsPDF | null>(null);
+  const [loadingProduct, setLoadingProduct] = useState<string | null>(null);
   
   const wifiString = `WIFI:T:${config.encryption};S:${config.ssid};P:${config.password};H:${config.hidden};;`;
 
@@ -219,6 +261,79 @@ export const QRDisplay = ({ config, onQRGenerated }: QRDisplayProps) => {
     }
   };
 
+  const handleOrder = async (product: Product) => {
+    if (!qrDataUrl) {
+      toast({
+        title: "Error",
+        description: "QR code is not ready yet",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoadingProduct(product.id);
+
+    try {
+      toast({
+        title: "Processing order...",
+        description: "Uploading your QR code design",
+      });
+
+      // Upload QR image to Printify and get variant details
+      const { data: printifyData, error: printifyError } = await supabase.functions.invoke('printify-upload', {
+        body: {
+          qr_data_url: qrDataUrl,
+          blueprint_id: product.blueprint_id,
+        },
+      });
+
+      if (printifyError) {
+        throw printifyError;
+      }
+
+      if (!printifyData?.image_id || !printifyData?.variant_id) {
+        throw new Error('Failed to upload image or fetch product details');
+      }
+
+      console.log('Printify data:', printifyData);
+
+      // Calculate retail price with markup using actual base cost
+      const baseCost = printifyData.base_cost || product.base_price;
+      const retailPrice = baseCost * MARKUP;
+
+      // Create Stripe checkout session
+      const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke('create-checkout', {
+        body: {
+          product_name: product.name,
+          price: retailPrice,
+          printify_image_id: printifyData.image_id,
+          printify_variant_id: printifyData.variant_id.toString(),
+          printify_blueprint_id: product.blueprint_id.toString(),
+          base_cost: baseCost,
+        },
+      });
+
+      if (checkoutError) {
+        throw checkoutError;
+      }
+
+      if (!checkoutData?.url) {
+        throw new Error('No checkout URL received');
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = checkoutData.url;
+    } catch (error) {
+      console.error('Order error:', error);
+      toast({
+        title: "Order failed",
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive",
+      });
+      setLoadingProduct(null);
+    }
+  };
+
   return (
     <>
       <Card className="mx-auto w-full max-w-2xl shadow-medium">
@@ -284,6 +399,32 @@ export const QRDisplay = ({ config, onQRGenerated }: QRDisplayProps) => {
               Works with any smartphone camera – no special apps needed!
             </p>
           </div>
+
+          {/* Inline Product Cards */}
+          {qrDataUrl && (
+            <div className="pt-6 border-t">
+              <div className="text-center mb-4">
+                <h3 className="text-lg font-semibold mb-1">Get Your QR Code Printed</h3>
+                <p className="text-sm text-muted-foreground">Professional prints delivered in 7-10 days</p>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-4 px-1">
+                {PRODUCTS.map((product) => (
+                  <CompactProductCard
+                    key={product.id}
+                    name={product.name}
+                    description={product.description}
+                    price={product.base_price * MARKUP}
+                    mockupUrl={product.mockup_url}
+                    onOrder={() => handleOrder(product)}
+                    isLoading={loadingProduct === product.id}
+                  />
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Secure checkout powered by Stripe • Prints by Monster Digital
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

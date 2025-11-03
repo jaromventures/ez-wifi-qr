@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Hero } from "@/components/Hero";
 import { WiFiForm, WiFiConfig } from "@/components/WiFiForm";
 import { QRDisplay } from "@/components/QRDisplay";
-import { PrintifyProducts } from "@/components/PrintifyProducts";
 import { Button } from "@/components/ui/button";
 import { ArrowUp } from "lucide-react";
 
@@ -49,7 +48,11 @@ const Index = () => {
         {wifiConfig && (
           <>
             <div id="qr-section" className="mt-12 scroll-mt-8">
-              <QRDisplay config={wifiConfig} onQRGenerated={handleQRGenerated} />
+              <QRDisplay 
+                config={wifiConfig} 
+                onQRGenerated={handleQRGenerated}
+                qrDataUrl={qrDataUrl}
+              />
               
               <div className="mt-6 text-center">
                 <Button onClick={handleReset} variant="outline" size="lg">
@@ -57,8 +60,6 @@ const Index = () => {
                 </Button>
               </div>
             </div>
-
-            {qrDataUrl && <PrintifyProducts config={wifiConfig} qrDataUrl={qrDataUrl} />}
           </>
         )}
       </main>
