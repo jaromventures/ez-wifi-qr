@@ -89,31 +89,39 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
               
               // Success - composite background + QR on main canvas
               canvas.width = 300;
-              canvas.height = 400; // Extra space for text
+              canvas.height = 300; // NO extra space
               
-              // Draw background
+              // Draw background (full canvas)
               ctx.drawImage(img, 0, 0, 300, 300);
               
               // Draw QR code on top
               ctx.drawImage(tempCanvas, 0, 0);
               
-              // Add white background for text area
-              ctx.fillStyle = "#FFFFFF";
-              ctx.fillRect(0, 300, 300, 100);
-              
-              // Draw network name
-              ctx.fillStyle = "#000000";
-              ctx.font = "bold 18px sans-serif";
-              ctx.textAlign = "center";
-              ctx.fillText(config.ssid, 150, 330);
-              
-              // Draw password
-              if (config.encryption !== "nopass" && config.password) {
-                ctx.font = "14px sans-serif";
-                ctx.fillText(`Password: ${config.password}`, 150, 355);
-              } else {
-                ctx.font = "14px sans-serif";
-                ctx.fillText("Open Network", 150, 355);
+              // Add frosted glass overlay for network name and password
+              if (config.encryption !== "nopass" || config.ssid) {
+                const textBoxY = 240;
+                const textBoxHeight = 50;
+                
+                // Frosted glass background
+                ctx.fillStyle = "rgba(255, 255, 255, 0.20)";
+                ctx.fillRect(10, textBoxY, 280, textBoxHeight);
+                
+                // Network name
+                ctx.fillStyle = "#000000";
+                ctx.font = "bold 16px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText(config.ssid, 150, textBoxY + 20);
+                
+                // Password (if exists)
+                if (config.encryption !== "nopass" && config.password) {
+                  ctx.font = "13px sans-serif";
+                  ctx.fillStyle = "#dc2626"; // Red
+                  ctx.fillText(`Password: ${config.password}`, 150, textBoxY + 40);
+                } else if (config.encryption === "nopass") {
+                  ctx.font = "13px sans-serif";
+                  ctx.fillStyle = "#000000";
+                  ctx.fillText("Open Network", 150, textBoxY + 40);
+                }
               }
               
               setIsGenerating(false);
@@ -182,28 +190,37 @@ export const QRDisplay = ({ config }: QRDisplayProps) => {
             const ctx = canvas.getContext("2d");
             if (ctx) {
               canvas.width = 300;
-              canvas.height = 400; // Extra space for text
+              canvas.height = 300; // NO extra space
               
-              // White background
+              // White background (for QR area only)
               ctx.fillStyle = "#FFFFFF";
-              ctx.fillRect(0, 0, 300, 400);
+              ctx.fillRect(0, 0, 300, 300);
               
               // Draw QR code
               ctx.drawImage(tempCanvas, 0, 0);
               
+              // Frosted glass overlay for text
+              const textBoxY = 240;
+              const textBoxHeight = 50;
+              
+              ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+              ctx.fillRect(10, textBoxY, 280, textBoxHeight);
+              
               // Draw network name
               ctx.fillStyle = "#000000";
-              ctx.font = "bold 18px sans-serif";
+              ctx.font = "bold 16px sans-serif";
               ctx.textAlign = "center";
-              ctx.fillText(config.ssid, 150, 330);
+              ctx.fillText(config.ssid, 150, textBoxY + 20);
               
               // Draw password
               if (config.encryption !== "nopass" && config.password) {
-                ctx.font = "14px sans-serif";
-                ctx.fillText(`Password: ${config.password}`, 150, 355);
+                ctx.font = "13px sans-serif";
+                ctx.fillStyle = "#dc2626";
+                ctx.fillText(`Password: ${config.password}`, 150, textBoxY + 40);
               } else {
-                ctx.font = "14px sans-serif";
-                ctx.fillText("Open Network", 150, 355);
+                ctx.font = "13px sans-serif";
+                ctx.fillStyle = "#000000";
+                ctx.fillText("Open Network", 150, textBoxY + 40);
               }
             }
             
