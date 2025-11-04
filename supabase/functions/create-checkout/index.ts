@@ -27,6 +27,7 @@ serve(async (req) => {
       printify_image_id,
       printify_variant_id,
       printify_blueprint_id,
+      print_provider_id,
       base_cost,
       shipping_address,
     } = await req.json();
@@ -44,6 +45,7 @@ serve(async (req) => {
         printify_image_id,
         printify_variant_id,
         printify_blueprint_id,
+        print_provider_id: print_provider_id || '99',
         product_name,
         base_cost: base_cost.toString(),
         // Store shipping address if provided, otherwise collect later

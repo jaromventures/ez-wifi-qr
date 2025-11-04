@@ -78,7 +78,7 @@ serve(async (req) => {
       external_id: payment_intent_id,
       line_items: [{
         blueprint_id: parseInt(metadata.printify_blueprint_id),
-        print_provider_id: 99, // Monster Digital
+        print_provider_id: parseInt(metadata.print_provider_id || '99'),
         variant_id: parseInt(metadata.printify_variant_id),
         quantity: 1,
         print_areas: {

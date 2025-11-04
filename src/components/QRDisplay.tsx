@@ -445,6 +445,7 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
           printify_image_id: printifyData.image_id,
           printify_variant_id: printifyData.variant_id.toString(),
           printify_blueprint_id: product.blueprint_id.toString(),
+          print_provider_id: printifyData.print_provider_id?.toString() || '99',
           base_cost: baseCost,
         },
       });

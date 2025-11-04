@@ -47,9 +47,35 @@ serve(async (req) => {
 
     console.log('Image uploaded successfully:', imageId);
 
-    // Fetch product variants and pricing for Monster Digital (provider ID 99)
+    // First, fetch available print providers for this blueprint
+    const providersResponse = await fetch(
+      `https://api.printify.com/v1/catalog/blueprints/${blueprint_id}/print_providers.json`,
+      {
+        headers: {
+          'Authorization': `Bearer ${printifyApiKey}`,
+        },
+      }
+    );
+
+    if (!providersResponse.ok) {
+      const error = await providersResponse.text();
+      throw new Error(`Failed to fetch print providers: ${error}`);
+    }
+
+    const providersData = await providersResponse.json();
+    
+    if (!providersData || providersData.length === 0) {
+      throw new Error('No print providers available for this blueprint');
+    }
+
+    // Try to find Monster Digital (99) first, otherwise use the first available provider
+    let printProviderId = providersData.find((p: any) => p.id === 99)?.id || providersData[0].id;
+    
+    console.log('Using print provider:', printProviderId);
+
+    // Fetch product variants and pricing
     const variantsResponse = await fetch(
-      `https://api.printify.com/v1/catalog/blueprints/${blueprint_id}/print_providers/99/variants.json`,
+      `https://api.printify.com/v1/catalog/blueprints/${blueprint_id}/print_providers/${printProviderId}/variants.json`,
       {
         headers: {
           'Authorization': `Bearer ${printifyApiKey}`,
@@ -78,6 +104,7 @@ serve(async (req) => {
         image_id: imageId,
         variant_id: variant.id,
         base_cost: variant.cost / 100, // Convert cents to dollars
+        print_provider_id: printProviderId,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

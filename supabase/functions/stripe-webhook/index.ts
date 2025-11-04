@@ -80,15 +80,15 @@ serve(async (req) => {
       // Submit order to Printify
       const printifyOrder = {
         external_id: session.id,
-        line_items: [{
-          blueprint_id: parseInt(metadata.printify_blueprint_id),
-          print_provider_id: 99, // Monster Digital
-          variant_id: parseInt(metadata.printify_variant_id),
-          quantity: 1,
-          print_areas: {
-            front: metadata.printify_image_id,
-          },
-        }],
+      line_items: [{
+        blueprint_id: parseInt(metadata.printify_blueprint_id),
+        print_provider_id: parseInt(metadata.print_provider_id || '99'),
+        variant_id: parseInt(metadata.printify_variant_id),
+        quantity: 1,
+        print_areas: {
+          front: metadata.printify_image_id,
+        },
+      }],
         shipping_method: 1,
         send_shipping_notification: true,
         address_to: {
