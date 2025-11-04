@@ -188,12 +188,33 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
       setIsGenerating(true);
 
       try {
-        // Generate all product-specific canvases
-        const [printCanvas, posterCanvas, squareCanvas] = await Promise.all([
-          generatePrintableCanvas(config),
-          generatePosterCanvas(config),
-          generateSquareProductCanvas(config),
-        ]);
+        console.log("Starting QR generation...", { 
+          ssid: config.ssid,
+          hasBackground: !!config.backgroundImage,
+          isMobile: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+        });
+        
+        // Detect mobile device
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        
+        // Generate canvases - sequentially on mobile to avoid memory issues
+        let printCanvas, posterCanvas, squareCanvas;
+        
+        if (isMobile) {
+          console.log("Mobile device detected - generating canvases sequentially");
+          printCanvas = await generatePrintableCanvas(config);
+          posterCanvas = await generatePosterCanvas(config);
+          squareCanvas = await generateSquareProductCanvas(config);
+        } else {
+          // Desktop: generate in parallel for speed
+          [printCanvas, posterCanvas, squareCanvas] = await Promise.all([
+            generatePrintableCanvas(config),
+            generatePosterCanvas(config),
+            generateSquareProductCanvas(config),
+          ]);
+        }
+        
+        console.log("Canvas generation complete");
         
         // Store product-specific canvases
         const posterDataUrl = posterCanvas.toDataURL('image/png');
@@ -226,13 +247,18 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
           onQRGenerated(dataUrl);
         }
         
+        console.log("QR generation successful");
         setIsGenerating(false);
       } catch (error) {
         console.error("Error generating preview:", error);
+        console.error("Error details:", {
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
         setIsGenerating(false);
         toast({
-          title: "Preview Generation Error",
-          description: "Failed to generate preview. Please try again.",
+          title: "QR Generation Failed",
+          description: error instanceof Error ? error.message : "Please try again or use a different background image.",
           variant: "destructive",
         });
       }

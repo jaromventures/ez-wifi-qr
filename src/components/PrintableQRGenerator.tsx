@@ -78,15 +78,32 @@ async function drawBackground(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    
+    // Only set crossOrigin for external URLs, not for data URLs or relative paths
+    if (backgroundImage.startsWith('http://') || backgroundImage.startsWith('https://')) {
+      img.crossOrigin = "anonymous";
+    }
     
     img.onload = () => {
-      ctx.drawImage(img, 0, 0, PRINT_CONFIG.width, PRINT_CONFIG.height);
-      resolve();
+      try {
+        ctx.drawImage(img, 0, 0, PRINT_CONFIG.width, PRINT_CONFIG.height);
+        console.log("Background image drawn successfully");
+        resolve();
+      } catch (err) {
+        console.error("Error drawing background image:", err);
+        // Fallback to gradient
+        const gradient = ctx.createLinearGradient(0, 0, 0, PRINT_CONFIG.height);
+        gradient.addColorStop(0, "#f8f9fa");
+        gradient.addColorStop(1, "#e9ecef");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, PRINT_CONFIG.width, PRINT_CONFIG.height);
+        resolve();
+      }
     };
     
-    img.onerror = () => {
-      console.warn("Background image failed to load, using gradient fallback");
+    img.onerror = (err) => {
+      console.error("Background image failed to load:", err);
+      console.warn("Using gradient fallback");
       const gradient = ctx.createLinearGradient(0, 0, 0, PRINT_CONFIG.height);
       gradient.addColorStop(0, "#f8f9fa");
       gradient.addColorStop(1, "#e9ecef");
@@ -95,6 +112,7 @@ async function drawBackground(
       resolve();
     };
     
+    console.log("Loading background image...", backgroundImage.substring(0, 50));
     img.src = backgroundImage;
   });
 }
@@ -417,14 +435,29 @@ async function drawSquareBackground(
 ): Promise<void> {
   return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    
+    // Only set crossOrigin for external URLs, not for data URLs or relative paths
+    if (backgroundImage.startsWith('http://') || backgroundImage.startsWith('https://')) {
+      img.crossOrigin = "anonymous";
+    }
     
     img.onload = () => {
-      ctx.drawImage(img, 0, 0, SQUARE_4X4_CONFIG.width, SQUARE_4X4_CONFIG.height);
-      resolve();
+      try {
+        ctx.drawImage(img, 0, 0, SQUARE_4X4_CONFIG.width, SQUARE_4X4_CONFIG.height);
+        resolve();
+      } catch (err) {
+        console.error("Error drawing square background:", err);
+        const gradient = ctx.createLinearGradient(0, 0, SQUARE_4X4_CONFIG.width, SQUARE_4X4_CONFIG.height);
+        gradient.addColorStop(0, "#f8f9fa");
+        gradient.addColorStop(1, "#e9ecef");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, SQUARE_4X4_CONFIG.width, SQUARE_4X4_CONFIG.height);
+        resolve();
+      }
     };
     
-    img.onerror = () => {
+    img.onerror = (err) => {
+      console.error("Square background image failed to load:", err);
       const gradient = ctx.createLinearGradient(0, 0, SQUARE_4X4_CONFIG.width, SQUARE_4X4_CONFIG.height);
       gradient.addColorStop(0, "#f8f9fa");
       gradient.addColorStop(1, "#e9ecef");
@@ -634,14 +667,29 @@ async function drawPosterBackground(
 ): Promise<void> {
   return new Promise((resolve) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    
+    // Only set crossOrigin for external URLs, not for data URLs or relative paths
+    if (backgroundImage.startsWith('http://') || backgroundImage.startsWith('https://')) {
+      img.crossOrigin = "anonymous";
+    }
     
     img.onload = () => {
-      ctx.drawImage(img, 0, 0, POSTER_CONFIG.width, POSTER_CONFIG.height);
-      resolve();
+      try {
+        ctx.drawImage(img, 0, 0, POSTER_CONFIG.width, POSTER_CONFIG.height);
+        resolve();
+      } catch (err) {
+        console.error("Error drawing poster background:", err);
+        const gradient = ctx.createLinearGradient(0, 0, 0, POSTER_CONFIG.height);
+        gradient.addColorStop(0, "#f8f9fa");
+        gradient.addColorStop(1, "#e9ecef");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, POSTER_CONFIG.width, POSTER_CONFIG.height);
+        resolve();
+      }
     };
     
-    img.onerror = () => {
+    img.onerror = (err) => {
+      console.error("Poster background image failed to load:", err);
       const gradient = ctx.createLinearGradient(0, 0, 0, POSTER_CONFIG.height);
       gradient.addColorStop(0, "#f8f9fa");
       gradient.addColorStop(1, "#e9ecef");
