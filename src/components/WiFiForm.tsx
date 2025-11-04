@@ -88,21 +88,11 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
       // Get dimensions
       const dimensions = await getImageDimensions(file);
       
-      // Show warning for very large images
-      if (fileSizeMB > 5) {
-        toast({
-          title: "Image Too Large",
-          description: "Please select an image smaller than 5MB for best results.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Optimize if needed (>800KB or >1500px)
+      // Optimize if needed (>800KB or >1500px or any file over 5MB gets extra aggressive optimization)
       let imageData: string;
       let wasOptimized = false;
       
-      if (fileSizeKB > 800 || dimensions.width > 1500 || dimensions.height > 1500) {
+      if (fileSizeKB > 800 || dimensions.width > 1500 || dimensions.height > 1500 || fileSizeMB > 5) {
         toast({
           title: "Optimizing Image",
           description: "Resizing image for better QR generation...",
