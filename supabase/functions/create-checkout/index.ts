@@ -33,39 +33,52 @@ serve(async (req) => {
     } = await req.json();
 
     console.log('Creating payment intent for:', { product_name, price });
+    console.log('Stripe API Version:', stripe.VERSION);
 
-    // Create a PaymentIntent for embedded checkout
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(price * 100),
-      currency: 'usd',
-      automatic_payment_methods: {
-        enabled: true,
-      },
-      metadata: {
-        printify_image_id,
-        printify_variant_id,
-        printify_blueprint_id,
-        print_provider_id: print_provider_id || '99',
-        product_name,
-        base_cost: base_cost.toString(),
-        // Store shipping address if provided, otherwise collect later
-        ...(shipping_address ? { shipping_address: JSON.stringify(shipping_address) } : {}),
-      },
-      description: `${product_name} - Custom WiFi QR Code Print`,
-    });
+    try {
+      // Create a PaymentIntent for embedded checkout
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(price * 100),
+        currency: 'usd',
+        automatic_payment_methods: {
+          enabled: true,
+        },
+        metadata: {
+          printify_image_id,
+          printify_variant_id,
+          printify_blueprint_id,
+          print_provider_id: print_provider_id || '99',
+          product_name,
+          base_cost: base_cost.toString(),
+          // Store shipping address if provided, otherwise collect later
+          ...(shipping_address ? { shipping_address: JSON.stringify(shipping_address) } : {}),
+        },
+        description: `${product_name} - Custom WiFi QR Code Print`,
+      });
 
-    console.log('Payment intent created:', paymentIntent.id);
+      console.log('Payment intent created:', paymentIntent.id);
 
-    return new Response(
-      JSON.stringify({ 
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id 
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    );
+      return new Response(
+        JSON.stringify({ 
+          clientSecret: paymentIntent.client_secret,
+          paymentIntentId: paymentIntent.id 
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    } catch (stripeError: any) {
+      console.error('Stripe error details:', {
+        message: stripeError.message,
+        type: stripeError.type,
+        code: stripeError.code,
+        statusCode: stripeError.statusCode,
+        raw: stripeError.raw,
+      });
+      throw new Error(`Stripe API Error: ${stripeError.message} (Code: ${stripeError.code || 'unknown'})`);
+    }
+
   } catch (error) {
     console.error('Error creating checkout session:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
