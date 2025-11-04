@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.get-printify-blueprints]
 verify_jwt = false
+
+[functions.submit-order]
+verify_jwt = false

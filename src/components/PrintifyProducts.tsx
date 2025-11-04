@@ -53,6 +53,14 @@ const PRODUCTS: Product[] = [
     mockup_url: "/presets/space.png",
     base_price: 4.13,
   },
+  {
+    id: "bumper-sticker",
+    name: 'Bumper Sticker',
+    description: "Durable outdoor bumper sticker for vehicles.",
+    blueprint_id: 598,
+    mockup_url: "/presets/space.png",
+    base_price: 6.00,
+  },
 ];
 
 const MARKUP = 1.45; // 45% markup

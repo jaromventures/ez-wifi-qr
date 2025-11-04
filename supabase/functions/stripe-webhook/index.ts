@@ -151,6 +151,24 @@ serve(async (req) => {
       }
     }
 
+    if (event.type === 'payment_intent.succeeded') {
+      const paymentIntent = event.data.object;
+      console.log('Processing payment intent:', paymentIntent.id);
+
+      // Get payment method details for customer info
+      const paymentMethod = await stripe.paymentMethods.retrieve(paymentIntent.payment_method);
+      
+      const metadata = paymentIntent.metadata;
+      
+      // Payment intents with embedded checkout collect shipping via Payment Element
+      // For now, we'll require the frontend to submit the order after payment confirmation
+      // This is a temporary flow - in production, you'd collect shipping in the form
+      console.log('Payment succeeded, awaiting shipping details from frontend');
+      
+      // Note: The order will be submitted when the frontend confirms payment
+      // and sends shipping details to a separate endpoint
+    }
+
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

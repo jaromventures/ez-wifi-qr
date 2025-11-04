@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { generatePrintableCanvas, generateSquareProductCanvas, generatePosterCanvas } from "./PrintableQRGenerator";
 import { CompactProductCard } from "./CompactProductCard";
 import { supabase } from "@/integrations/supabase/client";
+import { CheckoutDialog } from "./CheckoutDialog";
 
 interface QRDisplayProps {
   config: WiFiConfig;
@@ -39,6 +40,12 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
   const [loadingProduct, setLoadingProduct] = useState<string | null>(null);
   const [productCanvases, setProductCanvases] = useState<{ poster: string; square: string } | null>(null);
   const [qrThumbnail, setQrThumbnail] = useState<string>("");
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutData, setCheckoutData] = useState<{
+    clientSecret: string;
+    productName: string;
+    price: number;
+  } | null>(null);
   const [products, setProducts] = useState<Product[]>([
     {
       id: "framed-print",
@@ -67,6 +74,15 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
       base_price: 4.13,
       product_type: 'square',
     },
+    {
+      id: "bumper-sticker",
+      name: 'Bumper Sticker',
+      description: "Durable outdoor bumper sticker",
+      blueprint_id: 598,
+      mockup_url: "/presets/space.png",
+      base_price: 6.00,
+      product_type: 'square',
+    },
   ]);
   
   const wifiString = `WIFI:T:${config.encryption};S:${config.ssid};P:${config.password};H:${config.hidden};;`;
@@ -88,6 +104,7 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
           const newProducts: Product[] = [];
           
           // Map discovered products to our product structure
+          let stickerCount = 0;
           response.data.selectedProducts.forEach((item: any) => {
             if (item.category === 'poster' && item.mockupUrl) {
               newProducts.push({
@@ -110,15 +127,30 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
                 product_type: 'square',
               });
             } else if (item.category === 'sticker' && item.mockupUrl) {
-              newProducts.push({
-                id: "vinyl-sticker",
-                name: item.title || 'Vinyl Sticker (4x4")',
-                description: `By ${item.brand || 'Printify'}`,
-                blueprint_id: item.blueprintId,
-                mockup_url: item.mockupUrl,
-                base_price: 4.13,
-                product_type: 'square',
-              });
+              // Handle multiple stickers - first is vinyl, second is bumper
+              stickerCount++;
+              if (stickerCount === 1) {
+                newProducts.push({
+                  id: "vinyl-sticker",
+                  name: item.title || 'Vinyl Sticker (4x4")',
+                  description: `By ${item.brand || 'Printify'}`,
+                  blueprint_id: item.blueprintId,
+                  mockup_url: item.mockupUrl,
+                  base_price: 4.13,
+                  product_type: 'square',
+                });
+              } else if (item.blueprintId === 598) {
+                // Specifically add Bumper Stickers
+                newProducts.push({
+                  id: "bumper-sticker",
+                  name: item.title || 'Bumper Sticker',
+                  description: `By ${item.brand || 'Printify'}`,
+                  blueprint_id: item.blueprintId,
+                  mockup_url: item.mockupUrl,
+                  base_price: 6.00,
+                  product_type: 'square',
+                });
+              }
             }
           });
           
@@ -405,8 +437,8 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
       const baseCost = printifyData.base_cost || product.base_price;
       const retailPrice = baseCost * MARKUP;
 
-      // Create Stripe checkout session
-      const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke('create-checkout', {
+      // Create Stripe Payment Intent for embedded checkout
+      const { data: paymentData, error: checkoutError } = await supabase.functions.invoke('create-checkout', {
         body: {
           product_name: product.name,
           price: retailPrice,
@@ -421,12 +453,18 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
         throw checkoutError;
       }
 
-      if (!checkoutData?.url) {
-        throw new Error('No checkout URL received');
+      if (!paymentData?.clientSecret) {
+        throw new Error('No payment client secret received');
       }
 
-      // Redirect to Stripe Checkout
-      window.location.href = checkoutData.url;
+      // Open embedded checkout dialog
+      setCheckoutData({
+        clientSecret: paymentData.clientSecret,
+        productName: product.name,
+        price: retailPrice,
+      });
+      setCheckoutOpen(true);
+      setLoadingProduct(null);
     } catch (error) {
       console.error('Order error:', error);
       toast({
@@ -578,6 +616,18 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Embedded Checkout Dialog */}
+      {checkoutData && (
+        <CheckoutDialog
+          open={checkoutOpen}
+          onOpenChange={setCheckoutOpen}
+          clientSecret={checkoutData.clientSecret}
+          productName={checkoutData.productName}
+          price={checkoutData.price}
+          qrThumbnail={qrThumbnail}
+        />
+      )}
     </>
   );
 };

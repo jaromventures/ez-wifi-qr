@@ -28,30 +28,17 @@ serve(async (req) => {
       printify_variant_id,
       printify_blueprint_id,
       base_cost,
+      shipping_address,
     } = await req.json();
 
-    console.log('Creating checkout session for:', { product_name, price });
+    console.log('Creating payment intent for:', { product_name, price });
 
-    const origin = req.headers.get('origin') || 'https://yolcjslhswziywcyummx.supabase.co';
-
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: {
-            name: product_name,
-            description: 'Custom WiFi QR Code Print',
-          },
-          unit_amount: Math.round(price * 100),
-        },
-        quantity: 1,
-      }],
-      mode: 'payment',
-      success_url: `${origin}/?order_success=1&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: origin,
-      shipping_address_collection: {
-        allowed_countries: ['US', 'CA'],
+    // Create a PaymentIntent for embedded checkout
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(price * 100),
+      currency: 'usd',
+      automatic_payment_methods: {
+        enabled: true,
       },
       metadata: {
         printify_image_id,
@@ -59,13 +46,19 @@ serve(async (req) => {
         printify_blueprint_id,
         product_name,
         base_cost: base_cost.toString(),
+        // Store shipping address if provided, otherwise collect later
+        ...(shipping_address ? { shipping_address: JSON.stringify(shipping_address) } : {}),
       },
+      description: `${product_name} - Custom WiFi QR Code Print`,
     });
 
-    console.log('Checkout session created:', session.id);
+    console.log('Payment intent created:', paymentIntent.id);
 
     return new Response(
-      JSON.stringify({ url: session.url }),
+      JSON.stringify({ 
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id 
+      }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
