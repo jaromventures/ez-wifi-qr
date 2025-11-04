@@ -5,7 +5,9 @@ import { loadStripe, StripeElementsOptions } from "@stripe/stripe-js";
 import { EmbeddedCheckout } from "./EmbeddedCheckout";
 import { Loader2 } from "lucide-react";
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "");
+// Initialize Stripe with published key
+const stripeKey = "pk_live_51SPP5cHL7SXDiOCTLGW87fLFcGODDnAruZad0jDS89S8oSZGbWkitDDtaKLRd2jqzvhUsnvV5mPjYZYbkhdgv03j00qXttKnd3";
+const stripePromise = loadStripe(stripeKey);
 
 interface CheckoutDialogProps {
   open: boolean;
