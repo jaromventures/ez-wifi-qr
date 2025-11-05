@@ -208,18 +208,24 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     
     if (validateForm()) {
-      onGenerate({
-        ssid: ssid.trim(),
-        password: encryption === "nopass" ? "" : password,
-        encryption,
-        hidden,
-        showCredentialsOnPdf,
-        customTitle: customTitle.trim() || "Guest Wi-Fi",
-        backgroundImage,
-      });
+      // Use setTimeout to ensure form submission is complete before triggering generation
+      setTimeout(() => {
+        onGenerate({
+          ssid: ssid.trim(),
+          password: encryption === "nopass" ? "" : password,
+          encryption,
+          hidden,
+          showCredentialsOnPdf,
+          customTitle: customTitle.trim() || "Guest Wi-Fi",
+          backgroundImage,
+        });
+      }, 0);
     }
+    
+    return false;
   };
 
   return (
@@ -462,7 +468,19 @@ export const WiFiForm = ({ onGenerate }: WiFiFormProps) => {
             </div>
           )}
 
-          <Button type="submit" size="touch" variant="hero" className="w-full">
+          <Button 
+            type="submit" 
+            size="touch" 
+            variant="hero" 
+            className="w-full"
+            onClick={(e) => {
+              // Extra safety for mobile browsers
+              if (e.currentTarget.form) {
+                e.preventDefault();
+                handleSubmit(e as any);
+              }
+            }}
+          >
             Generate QR Code
           </Button>
         </form>
