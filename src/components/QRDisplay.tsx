@@ -52,7 +52,7 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
       name: 'Framed Print (18x24")',
       description: "Premium framed poster",
       blueprint_id: 3,
-      mockup_url: "/presets/geometric.png",
+      mockup_url: "/products/poster-placeholder.png",
       base_price: 20.00,
       product_type: 'poster',
     },
@@ -61,7 +61,7 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
       name: 'Fridge Magnet (4x4")',
       description: "Kiss cut magnet",
       blueprint_id: 27,
-      mockup_url: "/presets/paisley.png",
+      mockup_url: "/products/magnet-placeholder.png",
       base_price: 5.50,
       product_type: 'square',
     },
@@ -70,7 +70,7 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
       name: 'Vinyl Sticker (4x4")',
       description: "Waterproof die-cut sticker",
       blueprint_id: 13,
-      mockup_url: "/presets/space.png",
+      mockup_url: "/products/sticker-placeholder.png",
       base_price: 4.13,
       product_type: 'square',
     },
@@ -79,7 +79,7 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
       name: 'Bumper Sticker',
       description: "Durable outdoor bumper sticker",
       blueprint_id: 598,
-      mockup_url: "/presets/space.png",
+      mockup_url: "/products/bumper-sticker-placeholder.png",
       base_price: 6.00,
       product_type: 'square',
     },
@@ -104,7 +104,6 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
           const newProducts: Product[] = [];
           
           // Map discovered products to our product structure
-          let stickerCount = 0;
           response.data.selectedProducts.forEach((item: any) => {
             if (item.category === 'poster' && item.mockupUrl) {
               newProducts.push({
@@ -127,30 +126,25 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
                 product_type: 'square',
               });
             } else if (item.category === 'sticker' && item.mockupUrl) {
-              // Handle multiple stickers - first is vinyl, second is bumper
-              stickerCount++;
-              if (stickerCount === 1) {
-                newProducts.push({
-                  id: "vinyl-sticker",
-                  name: item.title || 'Vinyl Sticker (4x4")',
-                  description: `By ${item.brand || 'Printify'}`,
-                  blueprint_id: item.blueprintId,
-                  mockup_url: item.mockupUrl,
-                  base_price: 4.13,
-                  product_type: 'square',
-                });
-              } else if (item.blueprintId === 598) {
-                // Specifically add Bumper Stickers
-                newProducts.push({
-                  id: "bumper-sticker",
-                  name: item.title || 'Bumper Sticker',
-                  description: `By ${item.brand || 'Printify'}`,
-                  blueprint_id: item.blueprintId,
-                  mockup_url: item.mockupUrl,
-                  base_price: 6.00,
-                  product_type: 'square',
-                });
-              }
+              newProducts.push({
+                id: "vinyl-sticker",
+                name: item.title || 'Vinyl Sticker (4x4")',
+                description: `By ${item.brand || 'Printify'}`,
+                blueprint_id: item.blueprintId,
+                mockup_url: item.mockupUrl,
+                base_price: 4.13,
+                product_type: 'square',
+              });
+            } else if (item.category === 'bumper_sticker' && item.mockupUrl) {
+              newProducts.push({
+                id: "bumper-sticker",
+                name: item.title || 'Bumper Sticker (10x3")',
+                description: `By ${item.brand || 'Printify'}`,
+                blueprint_id: item.blueprintId,
+                mockup_url: item.mockupUrl,
+                base_price: 6.00,
+                product_type: 'square',
+              });
             }
           });
           
@@ -576,7 +570,7 @@ export const QRDisplay = ({ config, onQRGenerated, qrDataUrl }: QRDisplayProps) 
                 <h3 className="text-lg font-semibold mb-1">Get Your QR Code Printed</h3>
                 <p className="text-sm text-muted-foreground">Professional prints delivered in 7-10 days</p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
                 {products.map((product) => (
                   <CompactProductCard
                     key={product.id}

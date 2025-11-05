@@ -76,69 +76,52 @@ serve(async (req) => {
 
     if (posters.length > 0) {
       const poster = posters[0];
-      // Fetch the full blueprint details to get images
-      const posterDetailsResponse = await fetch(
-        `https://api.printify.com/v1/catalog/blueprints/${poster.id}.json`,
-        {
-          headers: {
-            'Authorization': `Bearer ${PRINTIFY_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      const posterDetails = await posterDetailsResponse.json();
       
       selectedProducts.push({
         blueprintId: poster.id,
         title: poster.title,
         brand: poster.brand,
-        mockupUrl: posterDetails.images?.[0]?.src || '/presets/geometric.png',
+        mockupUrl: '/products/poster-placeholder.png',
         category: 'poster'
       });
     }
 
     if (magnets.length > 0) {
       const magnet = magnets[0];
-      const magnetDetailsResponse = await fetch(
-        `https://api.printify.com/v1/catalog/blueprints/${magnet.id}.json`,
-        {
-          headers: {
-            'Authorization': `Bearer ${PRINTIFY_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      const magnetDetails = await magnetDetailsResponse.json();
       
       selectedProducts.push({
         blueprintId: magnet.id,
         title: magnet.title,
         brand: magnet.brand,
-        mockupUrl: magnetDetails.images?.[0]?.src || '/presets/paisley.png',
+        mockupUrl: '/products/magnet-placeholder.png',
         category: 'magnet'
       });
     }
 
     if (stickers.length > 0) {
-      const sticker = stickers[0];
-      const stickerDetailsResponse = await fetch(
-        `https://api.printify.com/v1/catalog/blueprints/${sticker.id}.json`,
-        {
-          headers: {
-            'Authorization': `Bearer ${PRINTIFY_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      const stickerDetails = await stickerDetailsResponse.json();
+      // First sticker: Square Stickers (blueprint 384)
+      const squareSticker = stickers.find((s: any) => s.id === 384) || stickers[0];
       
       selectedProducts.push({
-        blueprintId: sticker.id,
-        title: sticker.title,
-        brand: sticker.brand,
-        mockupUrl: stickerDetails.images?.[0]?.src || '/presets/space.png',
+        blueprintId: squareSticker.id,
+        title: squareSticker.title,
+        brand: squareSticker.brand,
+        mockupUrl: '/products/sticker-placeholder.png',
         category: 'sticker'
       });
+      
+      // Second sticker: Bumper Stickers (blueprint 598)
+      const bumperSticker = stickers.find((s: any) => s.id === 598);
+      
+      if (bumperSticker) {
+        selectedProducts.push({
+          blueprintId: bumperSticker.id,
+          title: bumperSticker.title,
+          brand: bumperSticker.brand,
+          mockupUrl: '/products/bumper-sticker-placeholder.png',
+          category: 'bumper_sticker'
+        });
+      }
     }
 
     console.log('Selected products:', selectedProducts);
